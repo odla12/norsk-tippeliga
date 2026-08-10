@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Norsk Tippeliga</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#1a1d24; --panel2:#222632; --line:#2c313d;
+    --txt:#e7e9ee; --muted:#9aa0ab; --accent:#ff7a18; --accent2:#ff9d4d;
+    --green:#19a974; --red:#e0524a; --gold:#f5c542;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%, #1b2030 0%, var(--bg) 60%);
+       color:var(--txt);font:15px/1.45 "Segoe UI",system-ui,Arial,sans-serif;
+       padding:24px 14px 60px;}
+  #app{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:30px;margin:0 0 4px;letter-spacing:.5px}
+  h2{margin:0 0 8px} h3{margin:0 0 10px;font-size:17px}
+  h4{margin:14px 0 6px;color:var(--accent2);font-size:13px;text-transform:uppercase;letter-spacing:.6px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;
+        box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  /* ---- setup ---- */
+  .setup label{display:block;margin:12px 0 4px;color:var(--muted);font-size:13px}
+  .setup input,.setup select,.setup textarea{width:100%;padding:10px 12px;background:var(--panel2);
+        border:1px solid var(--line);border-radius:9px;color:var(--txt);font-size:15px}
+  .setup textarea{resize:vertical;font-family:inherit;line-height:1.5}
+  .custombox{margin-top:10px;padding:14px;border:1px dashed var(--accent);border-radius:12px;background:rgba(255,122,24,.05)}
+  .or{text-align:center;color:var(--muted);margin:14px 0;font-size:13px}
+  /* ---- skjult juksekode (nede i venstre hjørne) ---- */
+  #cheat{position:fixed;left:8px;bottom:8px;z-index:90;font-size:12px}
+  #cheatBox{width:54px;padding:5px 7px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);opacity:.22;font-size:12px;transition:opacity .2s,width .2s}
+  #cheatBox:hover,#cheatBox:focus{opacity:1;width:120px;outline:none;border-color:var(--accent)}
+  #cheatPanel{display:none;flex-direction:column;gap:6px;margin-top:6px;background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  #cheatPanel.show{display:flex}
+  #cheatPanel span{color:var(--txt);font-weight:600}
+  #cheatPanel input{width:160px;padding:7px 9px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:14px}
+  .searchwrap{margin-top:8px;position:relative}
+  .results{margin-top:6px;display:flex;flex-direction:column;gap:4px;max-height:230px;overflow:auto}
+  .hit{display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel2);
+       border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--txt);cursor:pointer}
+  .hit:hover{border-color:var(--accent)} .hit span{color:var(--muted);font-size:12px}
+  /* ---- buttons ---- */
+  .btn{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+       border-radius:9px;padding:10px 14px;cursor:pointer;font-size:14px;transition:.15s}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:linear-gradient(180deg,var(--accent2),var(--accent));border:none;color:#1a1205;font-weight:700}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn.big{width:100%;padding:13px;font-size:16px;margin-top:16px}
+  .btn.small{padding:7px 11px;font-size:13px}
+  .btn.danger{border-color:rgba(255,80,70,.5);color:#ff8a7e}
+  .btn.danger:hover{border-color:#ff5046;background:rgba(255,80,70,.12)}
+  .btn.link{background:none;border:none;color:var(--accent2);text-decoration:underline;width:100%;margin-top:10px}
+  /* ---- varslinger ---- */
+  .notescard h3{display:flex;justify-content:space-between;align-items:center}
+  .noterow{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel2);border-radius:7px;padding:8px 10px;margin-top:6px;font-size:13px}
+  .noterow .btn{padding:3px 9px}
+  /* ---- topbar ---- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px;
+          background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+  .club{font-size:19px;font-weight:800;color:var(--accent2)}
+  .meta{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .actions{display:flex;gap:8px;flex-shrink:0}
+  /* ---- match ---- */
+  .match .rnd{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px;text-align:center}
+  .fixture{display:flex;align-items:center;justify-content:center;gap:12px;font-size:19px;
+           font-weight:700;margin:12px 0;text-align:center;flex-wrap:wrap}
+  .fixture .vs{color:var(--muted);font-size:13px;font-weight:400}
+  .fixture .me{color:var(--accent2)}
+  .tactic{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+  .tactic label{color:var(--muted);font-size:13px}
+  .tac{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:20px;
+       padding:6px 14px;cursor:pointer;font-size:13px}
+  .tac.on{background:var(--accent);border-color:var(--accent);color:#1a1205;font-weight:700}
+  .playbtns{display:flex;gap:10px;flex-wrap:wrap} .playbtns .btn{flex:1}
+  /* ---- results list ---- */
+  .reslist{display:flex;flex-direction:column;gap:4px}
+  .resrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
+          padding:7px 10px;border-radius:8px;background:var(--panel2)}
+  .resrow .rl{text-align:right} .resrow .rr{text-align:left}
+  .resrow .sc{font-weight:800;color:var(--accent2);min-width:54px;text-align:center}
+  .resrow.mine{outline:1px solid var(--accent)}
+  /* ---- table ---- */
+  .ltbl{width:100%;border-collapse:collapse;font-size:13px}
+  .ltbl th,.ltbl td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  .ltbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase}
+  .ltbl .tn{text-align:left} .ltbl .pts{font-weight:800;color:var(--accent2)}
+  .ltbl tr.promo td:first-child{box-shadow:inset 3px 0 var(--green)}
+  .ltbl tr.releg td:first-child{box-shadow:inset 3px 0 var(--red)}
+  .ltbl tr.gold td:first-child{box-shadow:inset 3px 0 var(--gold)}
+  .ltbl tr.me td{background:rgba(255,122,24,.13)} .ltbl tr.me .tn{font-weight:800}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
+  .lg{display:inline-flex;align-items:center;gap:5px}
+  .lg::before{content:"";width:9px;height:9px;border-radius:2px;display:inline-block}
+  .lg.promo::before{background:var(--green)} .lg.releg::before{background:var(--red)}
+  .lg.gold::before{background:var(--gold)} .lg.me::before{background:var(--accent)}
+  /* ---- end card ---- */
+  .endcard{text-align:center}
+  .endcard.gold{border-color:var(--gold)} .endcard.promo{border-color:var(--green)}
+  .endcard.releg{border-color:var(--red)}
+  /* ---- sparken: 5 jobbtilbud ---- */
+  .joblist{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  .joboffer{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;
+    padding:12px 14px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);cursor:pointer;font:inherit}
+  .joboffer:hover{border-color:var(--accent);background:rgba(255,122,24,.08)}
+  .joboffer .jteam{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+  .joboffer .jteam .str{font-size:11px;font-weight:700;color:#1a1205;background:var(--accent2);border-radius:6px;padding:1px 6px}
+  .joboffer .jdiv{font-size:12px;color:var(--muted)}
+  /* ---- browse ---- */
+  .teamlist{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}
+  .teamlist li{display:flex;justify-content:space-between;padding:5px 9px;background:var(--panel2);
+       border-radius:6px;font-size:13px}
+  .teamlist .str{color:var(--muted);font-size:11px}
+  .teamlist li.me-tag{outline:1px solid var(--accent)}
+  /* ---- infobar ---- */
+  .infobar{display:flex;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;padding:10px 14px;font-size:13px;color:var(--muted)}
+  .infobar b{color:var(--txt)}
+  .muted2{color:var(--muted);font-size:12px;font-weight:400}
+  /* ---- live ---- */
+  .live{text-align:center;width:min(96vw,1500px);margin-left:50%;transform:translateX(-50%)}
+  .lvtop{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+  .lvteams{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin:10px 0 4px}
+  .lvname{font-size:17px;font-weight:700} .lvname.me{color:var(--accent2)}
+  .lvscore{font-size:30px;font-weight:800;display:flex;gap:8px;align-items:center}
+  .lvscore i{color:var(--muted);font-style:normal;font-size:20px}
+  .lvclock{font-size:14px;color:var(--green);font-weight:700;margin-bottom:8px}
+  .lvfeed{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+       padding:10px;height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px;font-size:14px}
+  .fl{padding:5px 8px;border-radius:7px;background:rgba(255,255,255,.02)}
+  .fl .ft{color:var(--muted)}
+  .fl.goal{background:rgba(25,169,116,.12)} .fl.goal.mine{background:rgba(255,122,24,.18);outline:1px solid var(--accent)}
+  .fl.yc{background:rgba(245,197,66,.10)} .fl.rc{background:rgba(224,82,74,.14)}
+  .fl.goal.og{background:rgba(255,122,24,.10);outline:1px dashed var(--accent2)}
+  .fl.info{background:rgba(255,255,255,.04);color:var(--muted)}
+  .fl.var{background:rgba(140,120,255,.14);outline:1px solid #8c78ff}
+  .fl.var.ok{background:rgba(25,169,116,.16)} .fl.var.no{background:rgba(224,82,74,.16)}
+  .fl.div{text-align:center;color:var(--muted);background:none;font-size:12px}
+  .fl.ft2{color:var(--txt);font-size:14px}
+  .lvctrl{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+  .spd.on{background:var(--accent);border-color:var(--accent);color:#1a1205;font-weight:700}
+  /* ---- interaktiv straffe/frispark (24 plasser) ---- */
+  .pcsit{text-align:center;margin:12px 0 8px;font-size:15px;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .ltable{width:100%;border-collapse:collapse;font-size:13px}
+  .ltable th,.ltable td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--line)}
+  .ltable th:nth-child(2),.ltable td:nth-child(2){text-align:left}
+  .ltable th{color:var(--muted);font-weight:600;font-size:11px}
+  .ltable .me-row{background:rgba(255,122,24,.16);outline:1px solid var(--accent)}
+  .shootwrap{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+  .shoottitle{font-size:14px;color:var(--txt)}
+  .goalgrid{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(3,1fr);gap:4px;
+    width:min(460px,94%);aspect-ratio:8/3;background:linear-gradient(#1c6b3a,#15532e);border:5px solid #fff;border-radius:6px;padding:5px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+  .goalcell{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:4px;cursor:pointer;
+    font-size:20px;display:flex;align-items:center;justify-content:center;transition:background .12s,transform .12s}
+  .goalcell:hover{background:rgba(255,122,24,.45);transform:scale(1.06)}
+  .goalcell.scored{background:var(--green);box-shadow:0 0 12px var(--green)}
+  .goalcell.missed{background:var(--red)}
+  /* ---- lagrating (på sidene: ditt lag høyre, motstander venstre) ---- */
+  .lvmid{display:flex;gap:22px;align-items:flex-start;margin-top:4px}
+  .lvmid .lvfeed{flex:1 1 auto;min-width:0;margin:0}
+  .lvratings.side{flex:0 0 clamp(220px,26vw,430px);text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  #lvRatR{border-color:var(--accent)}
+  .rttitle{font-size:14px;color:var(--muted);font-weight:700;margin-bottom:9px;letter-spacing:.02em;line-height:1.3}
+  .rttitle i{display:block;font-size:11px;color:var(--accent)}
+  .rtrow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:6px 3px;border-bottom:1px solid rgba(255,255,255,.05);font-size:15px}
+  .rtrow:last-child{border-bottom:none}
+  .rtn{flex:1 1 auto;line-height:1.3;word-break:break-word}
+  .rtn i{font-size:12px;margin-left:5px;color:var(--muted)}
+  .rtv{font-weight:800;font-variant-numeric:tabular-nums;min-width:42px;flex:0 0 auto;text-align:right;font-size:17px;color:var(--txt)}
+  .rtv.rg{color:var(--green)} .rtv.rr{color:var(--red)}
+  @media(max-width:760px){ .live{width:96vw} .lvmid{flex-wrap:wrap;gap:12px} .lvratings.side{flex:1 1 47%;padding:10px 12px} .lvmid .lvfeed{flex:1 1 100%;order:1} #lvRatR{order:2} #lvRatL{order:3} }
+  /* ---- tropp / marked ---- */
+  .plist{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:5px}
+  .prow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;background:var(--panel2);border-radius:7px;padding:6px 10px;font-size:13px}
+  .prow .pa{color:var(--muted);font-size:11px}
+  .prt{font-weight:800;color:var(--accent2);min-width:26px;text-align:right}
+  .mhead,.mrow{display:grid;grid-template-columns:2fr .6fr .8fr 1.2fr auto;gap:8px;align-items:center;padding:7px 6px;font-size:13px;border-bottom:1px solid var(--line)}
+  .mhead{color:var(--muted);font-size:11px;text-transform:uppercase}
+  .mrow .pn{font-weight:600}
+  .btn.dis{opacity:.45;cursor:not-allowed}
+  /* ---- cup ---- */
+  .cuplog{display:flex;flex-direction:column;gap:5px}
+  .cl{padding:7px 10px;border-radius:7px;background:var(--panel2);font-size:13px}
+  .cl.win{box-shadow:inset 3px 0 var(--green)} .cl.loss{box-shadow:inset 3px 0 var(--red)}
+  /* ---- flash / lagledelse ---- */
+  .flash{background:rgba(25,169,116,.14);border:1px solid var(--green);border-radius:10px;padding:10px 14px;font-size:13px}
+  .lineupbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:4px 0 12px;color:var(--muted);font-size:13px}
+  .lineupcount{font-size:14px;margin-bottom:10px} .lineupcount .ok{color:var(--green)} .lineupcount .no{color:var(--accent2)}
+  .lineupbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .psel{display:flex;justify-content:space-between;gap:8px;align-items:center;background:var(--panel2);
+       border:1px solid var(--line);border-radius:7px;padding:7px 10px;color:var(--txt);cursor:pointer;font-size:13px;text-align:left}
+  .psel.on{border-color:var(--accent);background:rgba(255,122,24,.16)}
+  /* ---- form / skade / utmattelse ---- */
+  .injtag{font-style:normal;font-size:10px;font-weight:700;color:#ff7a6e;background:rgba(255,80,70,.14);border-radius:5px;padding:1px 5px;white-space:nowrap}
+  .tiredtag{font-style:normal;font-size:10px;font-weight:700;color:#ffc24a;background:rgba(255,180,40,.13);border-radius:5px;padding:1px 5px;white-space:nowrap}
+  .prow.inj,.psel.inj{opacity:.62}
+  .psel.inj{cursor:not-allowed}
+  /* ---- kalender / egne spillere ---- */
+  .datebig{text-align:center;font-size:22px;font-weight:800;color:var(--accent2);margin:8px 0}
+  .nextmatch{text-align:center;font-size:15px;margin-bottom:12px;line-height:1.5}
+  .winrow{text-align:center;font-size:13px;margin:8px 0;color:var(--muted)}
+  .ok2{color:var(--green)} .no2{color:var(--red)}
+  .createform{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .createform input,.createform select{padding:9px 11px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px}
+  .createform #cpName{flex:1;min-width:140px} .createform #cpAge{width:80px}
+  /* ---- live: nye hendelser + bytte ---- */
+  .fl.near{background:rgba(245,197,66,.06)} .fl.sub{background:rgba(25,169,116,.10)}
+  .subui{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:12px}
+  .subui select{padding:6px 8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);max-width:150px}
+  /* ---- transfer: bud + salg ---- */
+  .tsearch{width:100%;padding:9px 12px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;color:var(--txt);font-size:14px;margin:8px 0}
+  .mhead,.mrow{grid-template-columns:2fr .5fr .5fr 1fr 1.4fr !important}
+  .bidcell{display:flex;gap:5px;align-items:center;justify-content:flex-end}
+  .bidinp{width:74px;padding:5px 7px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--txt);font-size:12px}
+  .listed{background:var(--panel2);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+  .listed .pn{font-weight:700;margin-bottom:4px}
+  .offerrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;font-size:13px}
+  /* ---- statistikk ---- */
+  .statlist{display:flex;flex-direction:column;gap:3px}
+  .statrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 9px;background:var(--panel2);border-radius:7px;font-size:13px}
+  .statrow .sr{color:var(--muted);min-width:18px} .statrow .sv{font-weight:800;color:var(--accent2)}
+  .statrow.mine{outline:1px solid var(--accent)}
+  .leaguesel{display:flex;gap:8px;flex-wrap:wrap}
+  .leaguesel .tsearch{flex:1 1 140px;min-width:0}
+  /* ---- straffekonkurranse ---- */
+  .penrows{display:flex;flex-direction:column;gap:6px;font-size:14px;text-align:center;margin-top:6px}
+  .pk{display:inline-block;margin:0 2px;font-size:15px}
+  .pk.ms{opacity:.5}
+  .penpick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
+  .pentaker{display:inline-flex;gap:6px;align-items:center}
+  /* ---- spillerdetalj / ungdom / filtre ---- */
+  .prow{width:100%;border:none;cursor:pointer;font-family:inherit}
+  .prow:hover{outline:1px solid var(--accent)}
+  .pdgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:6px}
+  .pdgrid>span:nth-child(odd){color:var(--muted)}
+  .ylist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+  .ybtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;color:var(--txt);cursor:pointer;font-size:14px;font-weight:700}
+  .ybtn:hover{border-color:var(--accent)}
+  .ybtn.playing{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green)}
+  .clubtag{color:var(--accent2);font-size:11px;font-style:normal}
+  /* ---- chat ---- */
+  .chatlog{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow:auto;margin:6px 0;padding:4px}
+  .cmsg{padding:7px 11px;border-radius:12px;font-size:13px;max-width:80%}
+  .cmsg.me{align-self:flex-end;background:var(--accent);color:#1a1205;border-bottom-right-radius:3px}
+  .cmsg.them{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:3px}
+  .cmsg.typing{opacity:.6;font-style:italic}
+  /* ---- lagrede spill ---- */
+  .saveslist{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+  .saverow{display:flex;gap:6px;align-items:stretch}
+  .saverow .saveload{flex:1;text-align:left}
+  .saverow .savedel{flex:0 0 auto}
+  .tfilters{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+  .tfilters select,.tfilters input{padding:7px 9px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);font-size:13px;flex:1;min-width:90px}
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="cheat">
+    <input id="cheatBox" placeholder="…" autocomplete="off" spellcheck="false"/>
+    <div id="cheatPanel">
+      <span>💰 Hvor mye penger vil du ha?</span>
+      <input id="cheatAmt" type="number" placeholder="1000000000"/>
+      <button id="cheatSet" class="btn small primary">Sett</button>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>

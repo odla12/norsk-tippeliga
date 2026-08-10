@@ -1,0 +1,12 @@
+{
+  "name": "norsk-tippeliga",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Norsk Tippeliga – fotball-manager med live-kamper, ungdomsakademi og AI-chat",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0"
+  }
+}

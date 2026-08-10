@@ -1,0 +1,4 @@
+node_modules/
+apikey.txt
+*.log
+.DS_Store
