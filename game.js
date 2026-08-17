@@ -1178,8 +1178,15 @@ function monthOfDay(day){ return ymd(day).m; }
 // Eliteserien starter ~15. mars (dag 74), 1. div ~5. april (95), resten ~12. april (102)
 function seasonStartDay(divIndex){ return divIndex===0?74 : divIndex===1?95 : 102; }
 function roundDay(i){ return seasonStartDay(S.divIndex) + i*7; } // én runde per uke
-/* Innstillinger per karriere (S.settings). gset leser med standardverdi. */
-function gset(k,def){ const s=(S&&S.settings)||{}; return s[k]==null?def:s[k]; }
+/* Innstillinger: karrieren (S.settings) har forrang, deretter global lagring
+   (gjelder ALLE karrierer, også nye), til slutt standardverdien. */
+const GSET_KEY="tippeliga_settings";
+function gsetGlobal(){ try{ return JSON.parse(localStorage.getItem(GSET_KEY)||"{}"); }catch(e){ return {}; } }
+function gset(k,def){
+  const s=(S&&S.settings)||{}; if(s[k]!=null) return s[k];
+  const g=gsetGlobal(); if(g[k]!=null) return g[k];
+  return def;
+}
 function windowOpen(day){ if(gset("alwaysWindow",false)) return true; const m=monthOfDay(day); return m===1||m===6||m===7||m===8; }
 // NM-runder spilles på faste datoer utover sesongen (3. runde ~5. juni)
 function cupRoundDay(i){ return 128 + i*14; }
@@ -1278,7 +1285,7 @@ function nextSaveId(){ return listSaves().reduce((m,r)=>Math.max(m, r.id||0), 0)
 function save(){ if(!S||!S._id) return; try{
     localStorage.setItem(saveKey(S._id), JSON.stringify(S));
     const reg=listSaves();
-    const meta={ id:S._id, manager:S.manager, team:S.userTeam, season:S.season, div:DIVISIONS[S.divIndex].name, sm:S.seasonsManaged };
+    const meta={ id:S._id, manager:S.manager, team:S.userTeam, season:S.season, div:DIVISIONS[S.divIndex].name, sm:S.seasonsManaged, cheated:!!S.cheated };
     const i=reg.findIndex(r=>r.id===S._id); if(i>=0) reg[i]=meta; else reg.push(meta);
     writeReg(reg);
   }catch(e){} }
@@ -2253,7 +2260,7 @@ function renderSetup(app){
     <div class="card setup">
       <h1>⚽ Norsk Tippeliga <span class="yr">2026</span></h1>
       <p class="sub">Bli manager. Velg klubb fra hele Norge – Eliteserien til 7. divisjon.</p>
-      ${saves.length?`<h4>Lagrede spill</h4><div class="saveslist">${saves.slice().reverse().map(s=>`<div class="saverow"><button class="btn saveload" data-id="${s.id}">▶ ${esc(s.manager)} – ${esc(s.team)} <span class="muted2">${esc(s.div)}, sesong ${s.season}</span></button><button class="btn small savedel" data-id="${s.id}" title="Slett">✕</button></div>`).join("")}</div><div class="or">– eller start ny karriere –</div>`:""}
+      ${saves.length?`<h4>Lagrede spill</h4><div class="saveslist">${saves.slice().reverse().map(s=>`<div class="saverow"><button class="btn saveload" data-id="${s.id}">▶ ${esc(s.manager)} – ${esc(s.team)} <span class="muted2">${esc(s.div)}, sesong ${s.season}${s.cheated?' · 🎮 jukset':''}</span></button><button class="btn small savedel" data-id="${s.id}" title="Slett">✕</button></div>`).join("")}</div><div class="or">– eller start ny karriere –</div>`:""}
       <label>Manager-navn</label><input id="mgr" placeholder="Skriv navnet ditt"/>
       <label>Divisjon</label><select id="div"></select>
       <label>Avdeling</label><select id="grp"></select>
@@ -2600,7 +2607,7 @@ function renderPlayerTransfer(app){
 function header(){
   const d=DIVISIONS[S.divIndex], g=d.groups[S.groupIndex];
   return `<div class="topbar">
-    <div><span class="club">${esc(S.userTeam)}</span><span class="meta">${esc(S.manager)} · ${esc(d.name)}${g.name?" "+esc(g.name):""} · Sesong ${S.season}</span></div>
+    <div><span class="club">${esc(S.userTeam)}</span><span class="meta">${esc(S.manager)} · ${esc(d.name)}${g.name?" "+esc(g.name):""} · Sesong ${S.season}${S.cheated?' · <b style="color:var(--gold)">🎮 Jukset</b>':''}</span></div>
     <div class="actions">
       <button id="goSeason" class="btn small">Liga</button>
       <button id="goSquad" class="btn small">Tropp</button>
@@ -3146,11 +3153,11 @@ function renderPlayerDetail(app){
         <span>Født</span><span>${born}</span>
         <span>Karriere</span><span>${car.homegrown?`Egenutviklet i ${esc(S.userTeam)} fra ${car.startAge} år`:`Startet i ${esc(car.started)} som ${car.startAge}-åring`}</span>
         <span>Nå i</span><span>${esc(S.userTeam)}</span>
-        <span>Kontrakt</span><span>${p.contract>0?`${p.contract} sesong(er) igjen`:'<b class="no2">utløper etter sesongen – forny nå, ellers går han gratis!</b>'}</span>
+        <span>Kontrakt</span><span>${!gset("contracts",true)?'<span class="muted2">slått av i ⚙️ Innstillinger – ingen kontrakter går ut</span>':p.contract>0?`${p.contract} sesong(er) igjen`:'<b class="no2">utløper etter sesongen – forny nå, ellers går han gratis!</b>'}</span>
         <span>Ukelønn</span><span>${kr(p.wage)}</span>
       </div>
       <div class="lineupbtns" style="margin-top:10px">
-        <button id="renew" class="btn small primary">Forny kontrakt (+2 sesonger) – ${kr(renewalCost(p))}</button>
+        ${gset("contracts",true)?`<button id="renew" class="btn small primary">Forny kontrakt (+2 sesonger) – ${kr(renewalCost(p))}</button>`:""}
         <button id="release" class="btn small danger">🚪 Kast ut av klubben (+${kr(Math.round((p.value||0)*0.5))})</button>
         <button id="pdBack" class="btn small">Tilbake</button></div>
       <p class="muted2" style="margin:8px 0 0">Kaster du ham ut får du <b>50 %</b> av verdien med en gang. Vil du ha mer, legg ham ut for salg i Overgangsmarked og vent på bud.</p></div>
@@ -3360,33 +3367,57 @@ function minesCash(){
 }
 
 /* ---------- Innstillinger: brytere per karriere + juksekoder ---------- */
-function setSet(k,v){ S.settings=S.settings||{}; S.settings[k]=v; save(); render(); }
+function setSet(k,v){
+  if(S){ S.settings=S.settings||{}; S.settings[k]=v; save(); }
+  try{ const g=gsetGlobal(); g[k]=v; localStorage.setItem(GSET_KEY, JSON.stringify(g)); }catch(e){} // gjelder også andre/nye karrierer
+  render();
+}
 function renderSettings(app){
   const row=(k,def,tittel,beskr)=>{ const on=gset(k,def);
     return `<div class="setrow"><div class="setinfo"><b>${tittel}</b><span>${beskr}</span></div>
       <button class="btn small ${on?'primary':''}" data-set="${k}" data-def="${def?1:0}">${on?'PÅ':'AV'}</button></div>`; };
   app.innerHTML=header()+infobar()+flashBar()+`<div class="card">
     <h3>⚙️ Innstillinger</h3>
-    <p class="muted2">Gjelder denne karrieren og lagres automatisk. Du kan endre når som helst.</p>
+    <p class="muted2">Lagres automatisk og gjelder <b>alle</b> karrierene dine – også nye. Du kan endre når som helst.</p>
     ${row("contracts",true,"Kontrakter","PÅ = kontrakter går ut og må fornyes. AV = du slipper å tenke på kontrakter – ingen forsvinner.")}
     ${row("youthMatches",true,"Ungdomskamper","PÅ = ungdomslagene spiller kamper på kalenderen. AV = ingen ungdomskamper eller varsler (du kan fortsatt se troppene).")}
     ${row("injuries",true,"Skader og utmattelse","PÅ = spillere kan bli skadet eller kollapse i kamp. AV = skadefritt lag.")}
     ${row("alwaysWindow",false,"Overgangsvindu alltid åpent","PÅ = kjøp og selg spillere hele året. AV = kun januar, juni, juli og august.")}
     ${row("sacking",true,"Sparken","PÅ = du kan få sparken etter nedrykk. AV = trygg i jobben uansett resultat.")}
     ${row("cheats",false,"Juksekoder","PÅ = viser jukse-knappene under: sett penger, helbred alle og superlag.")}
-    ${gset("cheats",false)?`<h4>💰 Juksekoder</h4>
+    ${gset("cheats",false)?`<h4>💰 Juksekoder <span class="muted2" style="font-weight:400">(bruker du dem, merkes karrieren med 🎮 Jukset)</span></h4>
       <div class="createform">
         <input id="chAmt" type="number" placeholder="Beløp (kr)" style="flex:1;min-width:130px"/>
         <button id="chMoney" class="btn small primary">Sett penger</button>
         <button id="chHeal" class="btn small">❤️ Helbred alle</button>
         <button id="chBoost" class="btn small">💪 Superlag +5</button>
-      </div>`:""}
+      </div>
+      <h4>🚀 Bytt klubb (juks)</h4>
+      <div class="createform">
+        <select id="chDiv"></select><select id="chGrp"></select><select id="chTeam"></select>
+        <button id="chGo" class="btn small primary">Ta over klubben</button>
+      </div>
+      <p class="muted2">Du tar over klubben umiddelbart – sesongen starter på nytt 1. januar. Egne/signerte spillere blir igjen i gamleklubben som vanlig.</p>`:""}
   </div>`;
   wireHeader();
   document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{ const def=b.dataset.def==="1"; setSet(b.dataset.set, !gset(b.dataset.set,def)); });
-  if($("chMoney")) $("chMoney").onclick=()=>{ const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
-  if($("chHeal")) $("chHeal").onclick=()=>{ S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
-  if($("chBoost")) $("chBoost").onclick=()=>{ S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
+  if($("chMoney")) $("chMoney").onclick=()=>{ const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; S.cheated=true; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
+  if($("chHeal")) $("chHeal").onclick=()=>{ S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); S.cheated=true; FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
+  if($("chBoost")) $("chBoost").onclick=()=>{ S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); S.cheated=true; FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
+  const cd=$("chDiv"), cg=$("chGrp"), ct=$("chTeam");
+  if(cd){
+    DIVISIONS.forEach((d,i)=>cd.add(new Option(d.name,i)));
+    const fillG=()=>{ cg.innerHTML=""; DIVISIONS[+cd.value].groups.forEach((g,i)=>cg.add(new Option(g.name||"Serien",i))); fillT(); };
+    const fillT=()=>{ ct.innerHTML=""; DIVISIONS[+cd.value].groups[+cg.value].teams.forEach(t=>ct.add(new Option(t,t))); };
+    cd.onchange=fillG; cg.onchange=fillT;
+    cd.value=S.divIndex; fillG(); cg.value=S.groupIndex; fillT();
+    $("chGo").onclick=()=>{
+      const team=ct.value;
+      if(team===S.userTeam){ FLASH="⚠ Du er allerede manager i "+team+"."; render(); return; }
+      S.cheated=true; FLASH="🚀 Juksekode: du har tatt over "+team+"!";
+      takeNewClub(+cd.value, +cg.value, team);
+    };
+  }
 }
 
 /* ---------- Guide / Slik spiller du ---------- */
@@ -3456,7 +3487,8 @@ function renderGuide(app){
   <div class="card"><h3>⚙️ Innstillinger</h3>
     <ul>
       <li>Trykk på <b>⚙️</b> i toppmenyen for å skru av/på: <b>kontrakter</b> (slipp å fornye), <b>ungdomskamper</b>, <b>skader</b>, <b>overgangsvindu alltid åpent</b> og <b>sparken</b>.</li>
-      <li>Slår du på <b>juksekoder</b>, får du knapper for å sette penger, helbrede alle spillere og gi hele troppen +5 i styrke. Innstillingene lagres per karriere.</li>
+      <li>Slår du på <b>juksekoder</b>, kan du sette penger, helbrede alle spillere, gi troppen +5 i styrke og <b>ta over hvilken som helst klubb</b> i hele landet. Bruker du juks, merkes karrieren med <b>🎮 Jukset</b> (vises i toppen og på lagringslisten).</li>
+      <li>Innstillingene lagres automatisk og gjelder alle karrierene dine – også nye.</li>
     </ul></div>
   <div class="card"><h3>🎰 Klubbcasino</h3>
     <ul>
@@ -3496,7 +3528,7 @@ function wireCheat(){
   const norm=s=>(s||"").toLowerCase().replace(/\s+/g,"").replace(/å/g,"a");
   box.addEventListener("input", ()=>{ if(norm(box.value)==="heipadeg"){ panel.classList.add("show"); box.value=""; if(amt){ amt.value=S?Math.round(S.budget):1000000000; amt.focus(); amt.select(); } } });
   const apply=()=>{ if(!S){ FLASH=""; panel.classList.remove("show"); alert("Start en karriere først – så kan du sette penger."); return; }
-    const v=Math.max(0, Math.round(+amt.value||0)); S.budget=v; save(); panel.classList.remove("show");
+    const v=Math.max(0, Math.round(+amt.value||0)); S.budget=v; S.cheated=true; save(); panel.classList.remove("show");
     FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; render(); };
   if(set) set.onclick=apply;
   if(amt) amt.addEventListener("keydown", e=>{ if(e.key==="Enter") apply(); });
