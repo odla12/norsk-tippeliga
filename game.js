@@ -1793,7 +1793,7 @@ function revealMinute(c){
     const pitch = e.team===L.home?L.onH:L.onA; if(!pitch.length) continue;
     const mine = e.team===S.userTeam;
     if(e.type==="goal"){
-      const sc=pickScorer(pitch); const as=Math.random()<0.6?pickAssist(pitch,sc):null;
+      const sc=e.pen?penaltyTakerFor(e.team,pitch):pickScorer(pitch); const as=(!e.pen&&Math.random()<0.6)?pickAssist(pitch,sc):null;
       const isOG = !e.pen && Math.random()<0.06; // av og til selvmål – teller for oss, men står «selvmål»
       if(e.var && !L.skipping) startVarCheck(c, 'goal', {e, sc, as, isOG}); // VAR-sjekk på målet
       else applyGoal(c, e, sc, as, isOG);
@@ -1863,7 +1863,13 @@ function startVarCheck(c, kind, data){
   };
   const what=(REASONS[kind]||REASONS.goal)[(Math.random()*3)|0];
   const team = kind==='goal' ? (data.e&&data.e.team) : data.team;
-  liveFeed(`📺 <b>${clockText(L)}</b> VAR-SJEKK${team?` for <span class="ft">${esc(team)}</span>`:''} … sjekker ${what} <i>(spillet er stoppet)</i>`,"var");
+  if(kind==='red'){ // velg synderen NÅ, så meldingen navngir riktig spiller på riktig lag
+    const pitch=onPitchFor(data.team);
+    data.p = pitch.length ? pickBooked(pitch) : null;
+    liveFeed(`📺 <b>${clockText(L)}</b> VAR-SJEKK … sjekker ${what}${data.p?` på <b>${esc(data.p.name)}</b>`:''} (<span class="ft">${esc(team)}</span>) <i>(spillet er stoppet)</i>`,"var");
+  } else {
+    liveFeed(`📺 <b>${clockText(L)}</b> VAR-SJEKK${team?` for <span class="ft">${esc(team)}</span>`:''} … sjekker ${what} <i>(spillet er stoppet)</i>`,"var");
+  }
   if($("lvClock")) $("lvClock").textContent="VAR …";
   L.varTimer=setTimeout(()=>resolveVar(false), 10000);
 }
@@ -1884,27 +1890,35 @@ function resolveVarKind(c, kind, data){
     else liveFeed(`❌ <b>VAR:</b> IKKE MÅL – annullert (${Math.random()<0.5?'offside':'forseelse i forkant'}).`,"var no");
   } else if(kind==='penalty'){
     if(Math.random()<0.55){ liveFeed(`🎯 <b>VAR:</b> STRAFFE til ${esc(data.team)}!`,"var ok");
-      const sc=pickScorer(onPitchFor(data.team));
+      const sc=penaltyTakerFor(data.team, onPitchFor(data.team));
       if(Math.random()<0.8) applyGoal(c, {team:data.team, pen:true}, sc, null, false);
       else liveFeed(`😱 <b>${clockText(L)}</b> … men ${esc(sc.name)} bommer på straffen! — <span class="ft">${esc(data.team)}</span>`,"near");
     } else liveFeed(`❌ <b>VAR:</b> Ingen straffe – spillet fortsetter.`,"var no");
   } else if(kind==='red'){
     const pitch=onPitchFor(data.team);
-    if(Math.random()<0.5 && pitch.length){ const p=pickBooked(pitch); if(rec)recStat(p.name,data.team,"red"); removeFromPitch(data.team,p.name); rtAdj(ratMapFor(data.team),p.name,-1.5);
-      liveFeed(`🟥 <b>VAR:</b> RØDT KORT til ${esc(p.name)} — <span class="ft">${esc(data.team)}</span>`,"var no rc"); }
-    else liveFeed(`✅ <b>VAR:</b> Bare gult kort, ikke rødt.`,"var ok");
+    const p = (data.p && pitch.some(x=>x.name===data.p.name)) ? data.p : (pitch.length?pickBooked(pitch):null);
+    if(Math.random()<0.5 && p){ if(rec)recStat(p.name,data.team,"red"); removeFromPitch(data.team,p.name); rtAdj(ratMapFor(data.team),p.name,-1.5);
+      liveFeed(`🟥 <b>VAR:</b> RØDT KORT til ${esc(p.name)} (<span class="ft">${esc(data.team)}</span>)`,"var no rc"); }
+    else liveFeed(`✅ <b>VAR:</b> ${p?esc(p.name)+' slipper med gult':'Bare gult kort, ikke rødt'}.`,"var ok");
   }
 }
 /* ---- interaktiv straffe/frispark: velg blant 24 plasser, 50/50 om du scorer ---- */
 function pickShotTaker(pitch){ const me=(pitch||[]).find(p=>p.me); if(me) return me; const out=(pitch||[]).filter(p=>p.pos!=="MV"); out.sort((a,b)=>(SCORE_W[b.pos]||1)*b.rating-(SCORE_W[a.pos]||1)*a.rating); return out[0]||(pitch&&pitch[0]); }
-function autoShot(c, e){ const L=LIVE; const taker=pickShotTaker(onPitchFor(e.team)); if(!taker) return;
+/* Fast straffetaker (valgt i Lagledelse) – brukes hvis han er på banen, ellers beste skytter */
+function penaltyTakerFor(team, pitch){
+  if(S && team===S.userTeam && S.penaltyTaker){
+    const p=(pitch||[]).find(x=>x.name===S.penaltyTaker); if(p) return p;
+  }
+  return pickShotTaker(pitch);
+}
+function autoShot(c, e){ const L=LIVE; const taker=penaltyTakerFor(e.team, onPitchFor(e.team)); if(!taker) return;
   if(Math.random()<0.5) applyGoal(c, {team:e.team, pen:e.kind==='penalty'}, taker, null, false);
   else liveFeed(`${e.kind==='penalty'?'🧤':'🚫'} <b>${c}'</b> ${esc(taker.name)} ${Math.random()<0.5?'ble reddet':'skjøt utenfor'} — <span class="ft">${esc(e.team)}</span>`,"near"); }
 function startShot(c, e, mode){
   const L=LIVE; if(L.timer){clearInterval(L.timer);L.timer=null;} L.shotActive=true;
   const shoot = mode==='shoot';
   const userTeam = L.userIsHome?L.home:L.away;
-  const taker = pickShotTaker(onPitchFor(e.team));   // straffeskytter (ditt lag ved skyting, motstander ved redning)
+  const taker = penaltyTakerFor(e.team, onPitchFor(e.team));   // fast straffetaker hvis valgt, ellers beste skytter
   const keeper = shoot ? null : keeperOf(onPitchFor(userTeam));
   if(!taker){ L.shotActive=false; autoShot(c,e); return; }
   L.shotPending={c,e,taker,keeper,mode};
@@ -2807,6 +2821,12 @@ function renderLineup(app){
       <button id="saveXI" class="btn small ${nSel===11?'primary':'dis'}">Bruk laget</button>
       <button id="cancelXI" class="btn small">Avbryt</button></div>
     ${slotsHtml}
+    <h4>⚽ Straffetaker</h4>
+    <div class="createform"><select id="penTaker" style="flex:1;min-width:170px">
+      <option value="">Automatisk (beste skytter)</option>
+      ${LINEUP.filter(Boolean).map(n=>{ const p=squadByName(n); return p?`<option value="${esc(n)}" ${S.penaltyTaker===n?'selected':''}>${esc(n)} (${p.pos} · ${p.rating})</option>`:""; }).join("")}
+    </select></div>
+    <p class="muted2">Han tar straffene i kamp (så lenge han er på banen). I straffekonkurranser i NM velger du fortsatt hver skytter selv.</p>
     <h4>🪑 Benken (${bench.length})</h4>
     <div class="benchlist">${bench.map(p=>`<span class="bench-chip">${esc(p.name)} <i>${p.pos} · ${p.rating}${p.outDays>0?' 🤕':''}</i></span>`).join("")||'<span class="muted2">Ingen – alle er på banen.</span>'}</div>
   </div>`;
@@ -2817,6 +2837,7 @@ function renderLineup(app){
     const i=+sel.dataset.slot, n=sel.value||null, prev=LINEUP[i];
     if(n){ const j=LINEUP.indexOf(n); if(j>=0&&j!==i) LINEUP[j]=prev; } // bytt plass hvis han sto et annet sted
     LINEUP[i]=n; render(); });
+  if($("penTaker")) $("penTaker").onchange=()=>{ S.penaltyTaker=$("penTaker").value||null; save(); };
   $("autoXI").onclick=()=>{ LINEUP=placeInto(LFORM, S.squad.filter(isAvailable)); render(); };
   $("cancelXI").onclick=()=>{ LINEUP=null; S.screen="season"; render(); };
   $("saveXI").onclick=()=>{ if(nSel!==11){ FLASH="⚠ Du må sette 11 spillere på laget."; render(); return; }
@@ -3470,6 +3491,7 @@ function renderGuide(app){
       <li>Live-kamp med målscorere, assist og kort i en levende kampfeed – pluss straffe, VAR, nesten-mål, røde kort og rødt ved to gule.</li>
       <li><b>Bytter:</b> under kampen kan du bytte inn spillere fra benken, eller slå på <b>auto-bytte</b> så spillet bytter selv (rundt 64' og 74').</li>
       <li><b>Kamprating (keeper → spiss):</b> ditt lag til høyre, motstanderen til venstre. Alle starter på 6,0 og endres live: mål +1,0 · assist +0,7 · nestenmål +0,1 · gult −0,5 · rødt −1,5, og keeperen trekkes per baklengsmål. Etter kampen justeres alt etter resultatet – clean sheet løfter keeper/forsvar ekstra.</li>
+      <li><b>Straffetaker:</b> i Lagledelse velger du hvem som tar straffene i kamp – han brukes så lenge han er på banen.</li>
       <li><b>Straffekonkurranse i NM:</b> blir det uavgjort, velger du selv hvem som tar hver straffe (best av 5, så sudden death).</li>
     </ul></div>
   <div class="card"><h3>👥 Tropp og lagledelse</h3>

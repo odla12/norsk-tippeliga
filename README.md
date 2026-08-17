@@ -53,7 +53,8 @@ deg gjennom sesongene med opp- og nedrykk.
 - **Lagledelse** – velg formasjon (4-4-2, 4-3-3, 4-5-1, 3-5-2, 5-3-2) og bestem hvor
   hver spiller skal spille: høyreback, midtstopper, venstreback, spiss osv. Spillere på
   feil plass svekkes (−10, keeper-bytter −20), og de som ikke er på banen sitter på
-  benken. Påvirker lagstyrke og scorere.
+  benken. Påvirker lagstyrke og scorere. Velg også **fast straffetaker** – han tar
+  straffene i kamp så lenge han er på banen.
 - **Bytter i kamp** – under live-kampen kan du bytte inn spillere fra benken, eller slå
   på **auto-bytte** så spillet bytter selv (rundt 64' og 74').
 - **Kamprating (keeper → spiss)** – begge lag får rating på hver sin side av kampfeeden:
