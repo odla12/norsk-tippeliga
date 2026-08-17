@@ -1,5 +1,7 @@
 # ⚽ Norsk Tippeliga
 
+**🌐 Spill i nettleseren: https://odla12.github.io/norsk-tippeliga/**
+
 Et fotball-manager-spill der du velger manager-navn og klubb fra hele den norske
 ligapyramiden – fra Eliteserien ned til 7. divisjon med avdelinger – og spiller
 deg gjennom sesongene med opp- og nedrykk.
