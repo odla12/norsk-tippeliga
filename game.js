@@ -3397,6 +3397,13 @@ function renderSettings(app){
         <button id="chHeal" class="btn small">❤️ Helbred alle</button>
         <button id="chBoost" class="btn small">💪 Superlag +5</button>
       </div>
+      <h4>⬆️ Oppgrader spiller (juks)</h4>
+      <div class="createform">
+        <select id="chPl" style="flex:1;min-width:150px"></select>
+        <input id="chRat" type="number" min="20" max="99" style="width:80px" title="Ny styrke (20–99)"/>
+        <button id="chUp" class="btn small primary">Oppgrader</button>
+      </div>
+      <p class="muted2">Velg en spiller i troppen og sett styrken hans (20–99).</p>
       <h4>🚀 Bytt klubb (juks)</h4>
       <div class="createform">
         <select id="chDiv"></select><select id="chGrp"></select><select id="chTeam"></select>
@@ -3409,6 +3416,17 @@ function renderSettings(app){
   if($("chMoney")) $("chMoney").onclick=()=>{ if(!cheatWarn()) return; const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; S.cheated=true; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
   if($("chHeal")) $("chHeal").onclick=()=>{ if(!cheatWarn()) return; S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); S.cheated=true; FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
   if($("chBoost")) $("chBoost").onclick=()=>{ if(!cheatWarn()) return; S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); S.cheated=true; FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
+  const pl=$("chPl");
+  if(pl){
+    S.squad.slice().sort((a,b)=>b.rating-a.rating).forEach(p=>pl.add(new Option(`${p.name} (${p.pos} · ${p.rating})`, p.name)));
+    const syncR=()=>{ const p=squadByName(pl.value); if(p) $("chRat").value=p.rating; };
+    pl.onchange=syncR; syncR();
+    $("chUp").onclick=()=>{ if(!cheatWarn()) return;
+      const p=squadByName(pl.value); if(!p){ FLASH="⚠ Velg en spiller."; render(); return; }
+      const r=clamp(Math.round(+$("chRat").value||0),20,99);
+      p.rating=r; p.value=playerValue(r); S.cheated=true;
+      FLASH=`⬆️ Juksekode: ${p.name} har nå ${r} i styrke!`; save(); render(); };
+  }
   const cd=$("chDiv"), cg=$("chGrp"), ct=$("chTeam");
   if(cd){
     DIVISIONS.forEach((d,i)=>cd.add(new Option(d.name,i)));
@@ -3493,7 +3511,7 @@ function renderGuide(app){
   <div class="card"><h3>⚙️ Innstillinger</h3>
     <ul>
       <li>Trykk på <b>⚙️</b> i toppmenyen for å skru av/på: <b>kontrakter</b> (slipp å fornye), <b>ungdomskamper</b>, <b>skader</b>, <b>overgangsvindu alltid åpent</b> og <b>sparken</b>.</li>
-      <li>Slår du på <b>juksekoder</b>, kan du sette penger, helbrede alle spillere, gi troppen +5 i styrke og <b>ta over hvilken som helst klubb</b> i hele landet. Bruker du juks, merkes karrieren med <b>🎮 Jukset</b> (vises i toppen og på lagringslisten).</li>
+      <li>Slår du på <b>juksekoder</b>, kan du sette penger, helbrede alle spillere, gi troppen +5 i styrke, <b>oppgradere enkeltspillere</b> (sett styrken 20–99) og <b>ta over hvilken som helst klubb</b> i hele landet. Første juks gir en advarsel – bruker du den, merkes karrieren med <b>🎮 Jukset</b> for alltid.</li>
       <li>Innstillingene lagres automatisk og gjelder alle karrierene dine – også nye.</li>
     </ul></div>
   <div class="card"><h3>🎰 Klubbcasino</h3>
