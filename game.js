@@ -3367,6 +3367,11 @@ function minesCash(){
 }
 
 /* ---------- Innstillinger: brytere per karriere + juksekoder ---------- */
+/* Advarsel før første juks i en karriere: merket kan ikke fjernes */
+function cheatWarn(){
+  if(S && S.cheated) return true; // allerede merket – ingen ny advarsel
+  return confirm("⚠ JUKSEKODER\n\nBruker du dette, blir karrieren merket med «🎮 Jukset» – det vises i toppen og på lagringslisten, og kan ikke fjernes.\n\nVil du fortsette?");
+}
 function setSet(k,v){
   if(S){ S.settings=S.settings||{}; S.settings[k]=v; save(); }
   try{ const g=gsetGlobal(); g[k]=v; localStorage.setItem(GSET_KEY, JSON.stringify(g)); }catch(e){} // gjelder også andre/nye karrierer
@@ -3401,9 +3406,9 @@ function renderSettings(app){
   </div>`;
   wireHeader();
   document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{ const def=b.dataset.def==="1"; setSet(b.dataset.set, !gset(b.dataset.set,def)); });
-  if($("chMoney")) $("chMoney").onclick=()=>{ const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; S.cheated=true; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
-  if($("chHeal")) $("chHeal").onclick=()=>{ S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); S.cheated=true; FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
-  if($("chBoost")) $("chBoost").onclick=()=>{ S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); S.cheated=true; FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
+  if($("chMoney")) $("chMoney").onclick=()=>{ if(!cheatWarn()) return; const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; S.cheated=true; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
+  if($("chHeal")) $("chHeal").onclick=()=>{ if(!cheatWarn()) return; S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); S.cheated=true; FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
+  if($("chBoost")) $("chBoost").onclick=()=>{ if(!cheatWarn()) return; S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); S.cheated=true; FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
   const cd=$("chDiv"), cg=$("chGrp"), ct=$("chTeam");
   if(cd){
     DIVISIONS.forEach((d,i)=>cd.add(new Option(d.name,i)));
@@ -3414,6 +3419,7 @@ function renderSettings(app){
     $("chGo").onclick=()=>{
       const team=ct.value;
       if(team===S.userTeam){ FLASH="⚠ Du er allerede manager i "+team+"."; render(); return; }
+      if(!cheatWarn()) return;
       S.cheated=true; FLASH="🚀 Juksekode: du har tatt over "+team+"!";
       takeNewClub(+cd.value, +cg.value, team);
     };
@@ -3528,6 +3534,7 @@ function wireCheat(){
   const norm=s=>(s||"").toLowerCase().replace(/\s+/g,"").replace(/å/g,"a");
   box.addEventListener("input", ()=>{ if(norm(box.value)==="heipadeg"){ panel.classList.add("show"); box.value=""; if(amt){ amt.value=S?Math.round(S.budget):1000000000; amt.focus(); amt.select(); } } });
   const apply=()=>{ if(!S){ FLASH=""; panel.classList.remove("show"); alert("Start en karriere først – så kan du sette penger."); return; }
+    if(!cheatWarn()) return;
     const v=Math.max(0, Math.round(+amt.value||0)); S.budget=v; S.cheated=true; save(); panel.classList.remove("show");
     FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; render(); };
   if(set) set.onclick=apply;
