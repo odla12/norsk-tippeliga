@@ -1664,7 +1664,7 @@ function buildYouthLive(label){
   const onA=genYouthOpp(label,oppR);
   const ratH={}; t.forEach(p=>ratH[p.name]=6.0); const ratA={}; onA.forEach(p=>ratA[p.name]=6.0);
   return {home, away, divH:0,divA:0, ctx:{type:"youth",label}, finalScore:[hg,ag], evs, clock:0, shownScore:[0,0],
-    speed:1000, timer:null, dividers:{}, fullTime:FT, baseTime:base, stoppage, onH:t, onA, userIsHome:false, userIsAway:false, userBench:[],
+    speed:gset("matchSpeed",1000), timer:null, dividers:{}, fullTime:FT, baseTime:base, stoppage, onH:t, onA, userIsHome:false, userIsAway:false, userBench:[],
     userOn:t, ratH, ratA, userTeamName:home, yc:{}, subsLeft:0, autoDone:{}, ended:false};
 }
 function matchMinutes(label){ const a=groupMaxAge(label); return a<13?30 : a<=16?75 : 90; }
@@ -1740,7 +1740,7 @@ function buildLive(home,away,divH,divA,ctx){
   const ratH={}; onH.forEach(p=>ratH[p.name]=6.0); const ratA={}; onA.forEach(p=>ratA[p.name]=6.0);
   const asMins=(()=>{ const n=1+((Math.random()*2.4)|0), set=new Set(); while(set.size<n) set.add(58+((Math.random()*27)|0)); return [...set]; })(); // 1–3 auto-bytter på tilfeldige minutter (58–84)
   return {home,away,divH,divA,ctx, finalScore:[hg,ag], evs, clock:0, shownScore:[0,0],
-    speed:1000, timer:null, dividers:{}, fullTime:FT, baseTime:base, stoppage, onH, onA, userIsHome, userIsAway, userBench,
+    speed:gset("matchSpeed",1000), timer:null, dividers:{}, fullTime:FT, baseTime:base, stoppage, onH, onA, userIsHome, userIsAway, userBench,
     userOn, ratH, ratA, userTeamName:(userIsHome?home:(userIsAway?away:null)),
     userStart:(userIsHome||userIsAway)?[...startNames]:null, incidents:{},
     yc:{}, subsLeft:5, autoDone:{}, autoSubMins:asMins, ended:false};
@@ -1877,7 +1877,7 @@ function startVarCheck(c, kind, data){
     liveFeed(`📺 <b>${clockText(L)}</b> VAR-SJEKK${team?` for <span class="ft">${esc(team)}</span>`:''} … sjekker ${what} <i>(spillet er stoppet)</i>`,"var");
   }
   if($("lvClock")) $("lvClock").textContent="VAR …";
-  L.varTimer=setTimeout(()=>resolveVar(false), 10000);
+  L.varTimer=setTimeout(()=>resolveVar(false), Math.max(1400, Math.min(5000, L.speed*5))); // kortere VAR-pause i høy fart
 }
 function resolveVar(instant){
   const L=LIVE; if(!L||!L.varActive||!L.varPending) return;
@@ -2233,7 +2233,8 @@ function pvLoop(){
   if(!L||!L.pv){ if(L) L.pvRunning=false; return; }
   const cv=$("lvPitch");
   if(!cv){ if(S&&S.screen==="live"&&pvOn()){ requestAnimationFrame(pvLoop); } else { L.pv=null; L.pvRunning=false; } return; }
-  const pv=L.pv, now=performance.now(), dt=Math.min(0.05,(now-pv.last)/1000); pv.last=now;
+  const tempo=L.speed<=100?2.1:(L.speed<=200?1.6:1); // TV-bildet spiller raskere i 5×/10×
+  const pv=L.pv, now=performance.now(), dt=Math.min(0.05,(now-pv.last)/1000)*tempo; pv.last=now;
   pvRoster();
   // hendelses-koreografi fra køen
   if(!pv.choreo && pv.queue.length && !L.varActive && !L.shotActive){
@@ -2378,15 +2379,19 @@ function endLive(){
 /* ---- live-kontroller (fart, hopp, auto-bytte, manuelt bytte) ---- */
 function liveControlsHTML(){
   const L=LIVE, userInv=(L.userIsHome||L.userIsAway) && L.ctx.type!=="pmatch"; // spilleren styrer ikke bytter
-  return `<button class="btn small spd ${L.speed===1000?'on':''}" data-spd="1000">1× (1 sek/min)</button>
+  return `<button class="btn small spd ${L.speed===1000?'on':''}" data-spd="1000">1×</button>
     <button class="btn small spd ${L.speed===200?'on':''}" data-spd="200">5×</button>
+    <button class="btn small spd ${L.speed===100?'on':''}" data-spd="100">10×</button>
     <button class="btn small" id="lvSkip">Hopp til slutt ⏭</button>
     <button class="btn small" id="lvTv">📺 TV: ${pvOn()?'PÅ':'AV'}</button>
     ${userInv?`<button class="btn small" id="lvAuto">Auto-bytte: ${S.autoSub?'PÅ':'AV'}</button>`:""}
     ${userInv&&!S.autoSub?`<button class="btn small" id="lvSub">Bytte (${L.subsLeft})</button>`:""}`;
 }
 function wireLiveControls(){
-  document.querySelectorAll(".spd").forEach(b=>b.onclick=()=>{ LIVE.speed=+b.dataset.spd; document.querySelectorAll(".spd").forEach(x=>x.classList.toggle("on",x===b)); restartTimer(); });
+  document.querySelectorAll(".spd").forEach(b=>b.onclick=()=>{ LIVE.speed=+b.dataset.spd;
+    if(S){ S.settings=S.settings||{}; S.settings.matchSpeed=LIVE.speed; } // farten huskes til neste kamp
+    try{ const g=gsetGlobal(); g.matchSpeed=LIVE.speed; localStorage.setItem(GSET_KEY,JSON.stringify(g)); }catch(e){}
+    document.querySelectorAll(".spd").forEach(x=>x.classList.toggle("on",x===b)); restartTimer(); });
   if($("lvSkip")) $("lvSkip").onclick=skipToEnd;
   if($("lvTv")) $("lvTv").onclick=()=>{ const på=!pvOn(); setTv(på); if(!på && LIVE){ LIVE.pv=null; } render(); };
   if($("lvAuto")) $("lvAuto").onclick=()=>{ S.autoSub=!S.autoSub; redrawControls(); };
