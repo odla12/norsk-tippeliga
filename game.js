@@ -1818,10 +1818,12 @@ function revealMinute(c){
       const p=pickScorer(pitch);
       const v=[`${esc(p.name)} bøyer frisparket over muren – like utenfor`,`Frispark til ${esc(e.team)}, men ${esc(p.name)} treffer ikke`,`${esc(p.name)} slår frisparket inn i feltet – ryddet unna`][(Math.random()*3)|0];
       liveFeed(`🎯 <b>${c}'</b> ${v} — <span class="ft">${esc(e.team)}</span>`,"info");
+      pitchEvent('freekick',{team:e.team,name:p.name});
     } else if(e.type==="offside"){
       const p=pickScorer(pitch); rtAdj(ratMapFor(e.team),p.name,-0.1);
       const v=[`Offside! ${esc(p.name)} var for tidlig ute`,`Flagget går opp – ${esc(p.name)} i offside`][(Math.random()*2)|0];
       liveFeed(`🚩 <b>${c}'</b> ${v} — <span class="ft">${esc(e.team)}</span>`,"info");
+      pitchEvent('offside',{team:e.team,name:p.name});
     } else if(e.type==="yellow"){
       const p=pickBooked(pitch); L.yc[p.name]=(L.yc[p.name]||0)+1;
       if(L.yc[p.name]>=2){ pitchEvent('red',{team:e.team,name:p.name}); if(rec)recStat(p.name,e.team,"red"); removeFromPitch(e.team,p.name); rtAdj(ratMapFor(e.team),p.name,-1.0);
@@ -1901,7 +1903,7 @@ function resolveVarKind(c, kind, data){
   } else if(kind==='red'){
     const pitch=onPitchFor(data.team);
     const p = (data.p && pitch.some(x=>x.name===data.p.name)) ? data.p : (pitch.length?pickBooked(pitch):null);
-    if(Math.random()<0.5 && p){ if(rec)recStat(p.name,data.team,"red"); removeFromPitch(data.team,p.name); rtAdj(ratMapFor(data.team),p.name,-1.5);
+    if(Math.random()<0.5 && p){ pitchEvent('red',{team:data.team,name:p.name}); if(rec)recStat(p.name,data.team,"red"); removeFromPitch(data.team,p.name); rtAdj(ratMapFor(data.team),p.name,-1.5);
       liveFeed(`🟥 <b>VAR:</b> RØDT KORT til ${esc(p.name)} (<span class="ft">${esc(data.team)}</span>)`,"var no rc"); }
     else liveFeed(`✅ <b>VAR:</b> ${p?esc(p.name)+' slipper med gult':'Bare gult kort, ikke rødt'}.`,"var ok");
   }
@@ -2114,6 +2116,8 @@ function skipToEnd(){ const L=LIVE; if(L.timer){clearInterval(L.timer);L.timer=n
    ===================================================================== */
 const PVF={W:105,H:68}; // banemål i meter
 function pvOn(){ return gset("tvView", true); }
+function setTv(v){ if(S){ S.settings=S.settings||{}; S.settings.tvView=v; save(); }
+  try{ const g=gsetGlobal(); g.tvView=v; localStorage.setItem(GSET_KEY, JSON.stringify(g)); }catch(e){} }
 function pitchEvent(kind, data){
   const L=LIVE; if(!L||!L.pv||L.skipping) return;
   const pv=L.pv;
@@ -2123,13 +2127,22 @@ function pitchEvent(kind, data){
     pv.banner=(kind==='red'?'🟥 RØDT KORT – ':'🟨 Gult kort – ')+(data.name||'');
     pv.bannerT=1.8; return;
   }
+  if(kind==='offside'){ // flagget opp: motstanderen får ballen
+    pv.banner="🚩 Offside – "+(data.name||''); pv.bannerT=1.4;
+    pv.possess=(data.team===L.home)?L.away:L.home; pv.carrier=null; pv.flight=null; pv.holdT=0.9; return;
+  }
+  if(kind==='freekick'){ // frispark: ballen slås inn i feltet
+    pv.banner="🎯 Frispark – "+(data.team||''); pv.bannerT=1.4;
+    const atkRight=data.team===L.home; pv.possess=data.team; pv.choreo=null;
+    pvKick(pv.ball.x, pv.ball.y, atkRight?PVF.W-16:16, PVF.H/2+(Math.random()*24-12), 0.7, 2.2, Math.random()<0.5); return;
+  }
   if(pv.queue.length<3) pv.queue.push(data ? {...data, kind} : {kind});
 }
 function pitchInit(){
   const L=LIVE; if(!L||!pvOn()) return;
   if(!L.pv) L.pv={ cam:PVF.W/2, ball:{x:PVF.W/2,y:PVF.H/2,z:0}, carrier:null, flight:null,
     players:{}, choreo:null, queue:[], banner:null, bannerT:0, flash:0, holdT:0.8,
-    possess:L.home, last:performance.now(), crowd:null };
+    possess:L.home, last:performance.now(), crowd:null, freeze:0, bias:null };
   if(!L.pvRunning){ L.pvRunning=true; requestAnimationFrame(pvLoop); }
 }
 function pvRoster(){
@@ -2158,6 +2171,11 @@ function pvNearest(team,x,y){ let b=null,bd=1e9; for(const s of pvMates(team)){ 
 function pvKick(fx,fy,tx,ty,T,h,steal){ LIVE.pv.flight={fx,fy,tx,ty,t:0,T,h:h||0,steal:!!steal}; LIVE.pv.carrier=null; }
 function pvAmbient(dt){
   const L=LIVE, pv=L.pv;
+  if(pv.freeze>0){ pv.freeze-=dt; return; } // avspark-pause etter mål
+  // se litt fram i hendelseslista: laget som snart scorer/får sjanse skal HA ballen
+  const nx=L.evs && L.evs.find(ev=>ev.min>L.clock && ev.min<=L.clock+3 &&
+    (ev.type==='goal'||ev.type==='near'||ev.type==='post'||ev.type==='shot'||(ev.type==='var'&&ev.kind==='penalty')));
+  pv.bias = nx ? nx.team : null;
   if(pv.flight){ // ballen er i lufta / på vei
     const f=pv.flight; f.t=Math.min(f.T,f.t+dt); const u=f.t/f.T;
     pv.ball.x=f.fx+(f.tx-f.fx)*u; pv.ball.y=f.fy+(f.ty-f.fy)*u; pv.ball.z=4*(f.h||0)*u*(1-u);
@@ -2180,7 +2198,8 @@ function pvAmbient(dt){
       mates.sort((a,b)=>((b.x-c.x)*dir+Math.random()*22)-((a.x-c.x)*dir+Math.random()*22));
       const to=mates[(Math.random()*Math.min(3,mates.length))|0];
       const d=Math.hypot(to.x-c.x,to.y-c.y);
-      pvKick(pv.ball.x,pv.ball.y,to.x,to.y,Math.max(0.25,d/22),d>16?1.6:0.25,Math.random()<0.13);
+      const stealP = pv.bias ? (c.team===pv.bias?0.02:0.55) : 0.13; // laget med hendelse på vei mister ikke ballen
+      pvKick(pv.ball.x,pv.ball.y,to.x,to.y,Math.max(0.25,d/22),d>16?1.6:0.25,Math.random()<stealP);
     } else pv.holdT=1;
   }
 }
@@ -2205,7 +2224,7 @@ function pvChoreo(dt){
   }
   if(ch.t>=(ch.ev.kind==='goal'?2.5:1.3)){ // ferdig -> avspark / keeper har ballen
     pv.choreo=null; pv.possess=(ch.ev.team===L.home)?L.away:L.home; pv.carrier=null; pv.holdT=0.8;
-    if(ch.ev.kind==='goal'){ pv.ball={x:PVF.W/2,y:PVF.H/2,z:0}; }
+    if(ch.ev.kind==='goal'){ pv.ball={x:PVF.W/2,y:PVF.H/2,z:0}; pv.freeze=0.8; }
     else { pv.ball={x:ch.atkRight?PVF.W-6:6,y:PVF.H/2,z:0}; }
   }
 }
@@ -2369,9 +2388,7 @@ function liveControlsHTML(){
 function wireLiveControls(){
   document.querySelectorAll(".spd").forEach(b=>b.onclick=()=>{ LIVE.speed=+b.dataset.spd; document.querySelectorAll(".spd").forEach(x=>x.classList.toggle("on",x===b)); restartTimer(); });
   if($("lvSkip")) $("lvSkip").onclick=skipToEnd;
-  if($("lvTv")) $("lvTv").onclick=()=>{ const på=!pvOn(); if(S){ S.settings=S.settings||{}; S.settings.tvView=på; save(); }
-    try{ const g2=gsetGlobal(); g2.tvView=på; localStorage.setItem(GSET_KEY,JSON.stringify(g2)); }catch(e){}
-    if(!på && LIVE){ LIVE.pv=null; } render(); };
+  if($("lvTv")) $("lvTv").onclick=()=>{ const på=!pvOn(); setTv(på); if(!på && LIVE){ LIVE.pv=null; } render(); };
   if($("lvAuto")) $("lvAuto").onclick=()=>{ S.autoSub=!S.autoSub; redrawControls(); };
   if($("lvSub")) $("lvSub").onclick=openSubUI;
 }
@@ -2906,7 +2923,7 @@ function renderSeason(app){
       <div class="rnd">⚽ Seriekamp · Runde ${S.round+1}/${total} · ${dateLabel(S.day)}</div>
       <div class="fixture"><span class="${home?'me':''}">${esc(h)}</span><span class="vs">${home?'(H)':''} vs ${home?'':'(B)'}</span><span class="${!home?'me':''}">${esc(a)}</span></div>
       ${tacticRow()}
-      <div class="playbtns"><button id="play" class="btn big primary">Spill kamp (live) ▶</button><button id="simrest" class="btn">Simuler resten av sesongen</button></div></div>`;
+      <div class="playbtns"><button id="play" class="btn big primary">📺 Se kampen (live) ▶</button><button id="playTxt" class="btn">📃 Kun tekst (live)</button><button id="simrest" class="btn">Simuler resten</button></div></div>`;
   } else if(cupActive && S.day>=cmd){ // NM-KAMPDAG
     const opp=S.cup.opponent;
     card=`<div class="card match">
@@ -2914,7 +2931,7 @@ function renderSeason(app){
       <div class="fixture"><span class="me">${esc(S.userTeam)}</span><span class="vs">(H) vs</span><span>${esc(opp.name)}</span></div>
       <div class="muted2" style="text-align:center;margin-bottom:6px">Motstander fra ${esc(DIVISIONS[opp.divIndex].name)}</div>
       ${tacticRow()}
-      <div class="playbtns"><button id="cupLive" class="btn big primary">Spill NM-kamp (live) ▶</button><button id="cupSim" class="btn">Simuler NM-kamp</button></div></div>`;
+      <div class="playbtns"><button id="cupLive" class="btn big primary">📺 Se NM-kampen ▶</button><button id="cupTxt" class="btn">📃 Kun tekst</button><button id="cupSim" class="btn">Simuler</button></div></div>`;
   } else if(S.round<total){ // MELLOM KAMPER
     const ld=lmd-S.day; const [h,a]=S.fixtures[S.round].find(([h,a])=>h===S.userTeam||a===S.userTeam); const home=h===S.userTeam;
     let nm="";
@@ -2941,9 +2958,11 @@ function renderSeason(app){
   if($("clrNotes")) $("clrNotes").onclick=clearNotes;
   document.querySelectorAll("[data-note]").forEach(b=>b.onclick=()=>dismissNote(+b.dataset.note));
   if($("toYouth")) $("toYouth").onclick=()=>{ S.youthView=null; S.screen="youth"; render(); };
-  if($("play")) $("play").onclick=playRound;
+  if($("play")) $("play").onclick=()=>{ setTv(true); playRound(); };
+  if($("playTxt")) $("playTxt").onclick=()=>{ setTv(false); playRound(); };
   if($("simrest")) $("simrest").onclick=simRest;
-  if($("cupLive")) $("cupLive").onclick=playCupLive;
+  if($("cupLive")) $("cupLive").onclick=()=>{ setTv(true); playCupLive(); };
+  if($("cupTxt")) $("cupTxt").onclick=()=>{ setTv(false); playCupLive(); };
   if($("cupSim")) $("cupSim").onclick=playCupInstant;
   if($("nextDay")) $("nextDay").onclick=nextDay;
   if($("skipMatch")) $("skipMatch").onclick=skipToMatch;
