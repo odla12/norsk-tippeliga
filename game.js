@@ -84,6 +84,52 @@ function strength(name, divIndex){
   return BASE[Math.min(divIndex, BASE.length-1)] + (hash(name)%13 - 6);
 }
 
+/* Håndsatte, realistiske ratinger for stjernene i Eliteserien (2026).
+   Navnet må stemme EKSAKT med REAL_SQUADS. Tripić er ligaens beste (94).
+   Spillere som ikke står her, får generert rating (aldri over 90) – så
+   stjernene er alltid best. Legg gjerne til flere! */
+const STAR_RATINGS = {
+  // Viking
+  "Zlatko Tripić":94, "Veton Berisha":90, "Kristoffer Askildsen":88, "Joe Bell":88,
+  "Jesper Daland":87, "Edvin Austbø":87, "Henrik Heggheim":86,
+  // Bodø/Glimt
+  "Patrick Berg":93, "Jens Petter Hauge":92, "Ulrik Saltnes":91, "Nikita Haikin":91,
+  "Fredrik André Bjørkan":90, "Andreas Helmersen":90, "Ola Brynhildsen":89, "Håkon Evjen":89,
+  "Sondre Auklend":88, "Joshua Kitolano":88,
+  // Brann
+  "Bård Finne":89, "Noah Holm":88, "Rabbi Matondo":88, "Mathias Dyngeland":87,
+  "Jacob Lungi Sørensen":86, "Sakarias Opsahl":86,
+  // Molde
+  "Mats Møller Dæhli":89, "Emil Breivik":88, "Eirik Haugan":86, "Martin Linnes":85,
+  "Eirik Hestad":85, "Daniel Daga":84,
+  // Rosenborg
+  "Ole Selnæs":87, "Iver Fossum":87, "Dino Islamović":86, "Jonas Svensson":86,
+  "Leopold Wahlstedt":85, "Emil Konradsen Ceïde":84,
+  // Tromsø
+  "Lars Olden Larsen":85, "Leo Cornic":84, "Jakob Haugaard":83, "Ruben Yttergård Jenssen":81,
+  // Vålerenga
+  "Ole Sæter":86, "Odin Thiago Holm":84, "Mohamed Ofkir":83, "Henrik Bjørdal":82, "Oscar Hedvall":82,
+  // Lillestrøm
+  "Thomas Lehne Olsen":84, "Fredrik Gulbrandsen":82, "Ylldren Ibrahimaj":82,
+  "Kevin Martin Krygård":82, "Ruben Gabrielsen":81,
+  // Fredrikstad
+  "Sondre Sørløkk":82, "Leonard Owusu":81, "Simen Rafn":80, "Øystein Øvretveit":80,
+  // Sarpsborg 08
+  "Sigurd Rosted":82, "Sondre Sørli":81, "Jo Inge Berget":80, "Aimar Sher":80,
+  // KFUM Oslo
+  "Magnus Wolff Eikrem":81, "Robin Rasch":79, "Moussa Njie":78, "Bjørn Martin Kristensen":78,
+  // HamKam
+  "Henrik Udahl":80, "Anders Trondsen":78, "Marcus Sandberg":77,
+  // Kristiansund
+  "Sander Svendsen":79, "Michael Lansing":77, "Tobias Svendsen":76,
+  // Sandefjord
+  "Evangelos Patoulidis":79, "Nikolaj Möller":77, "Sander Risan Mørk":76,
+  // Start
+  "Håkon Lorentzen":80, "Stève Mvoué":79, "Markus Soomets":77, "Eirik Schulze":77,
+  // Aalesund
+  "Elias Hagen":78, "Kristoffer Nessø":76, "Paul Ngongo":76,
+};
+
 /* =====================================================================
    SPILLERE OG TROPPER
    ===================================================================== */
@@ -99,6 +145,22 @@ const LAST=["Hansen","Johansen","Olsen","Larsen","Andersen","Pedersen","Nilsen",
   "Sæther","Eide","Holm","Bø","Riise","Nordtveit","Selnæs","Ødegaard","Sørloth","Aursnes","Bobb"];
 const POSORDER=["MV","FOR","MID","ANG"];
 const POSNAME={MV:"Keeper",FOR:"Forsvar",MID:"Midtbane",ANG:"Angrep"};
+
+/* Formasjoner: 11 plasser i rekkefølge keeper → spiss */
+const FORMATIONS={
+  "4-4-2":["MV","HB","MS","MS","VB","HM","SM","SM","VM","SP","SP"],
+  "4-3-3":["MV","HB","MS","MS","VB","SM","SM","SM","HV","SP","VV"],
+  "4-5-1":["MV","HB","MS","MS","VB","HM","SM","SM","SM","VM","SP"],
+  "3-5-2":["MV","MS","MS","MS","HVB","SM","SM","SM","VVB","SP","SP"],
+  "5-3-2":["MV","HVB","MS","MS","MS","VVB","SM","SM","SM","SP","SP"],
+};
+const ROLENAME={MV:"Keeper",HB:"Høyreback",VB:"Venstreback",MS:"Midtstopper",HVB:"Høyre vingback",
+  VVB:"Venstre vingback",HM:"Høyre midtbane",VM:"Venstre midtbane",SM:"Sentral midtbane",
+  HV:"Høyreving",VV:"Venstreving",SP:"Spiss"};
+/* Hvilke naturlige posisjoner som passer på hver plass (uten styrketap) */
+const ROLE_ALLOWED={MV:["MV"],HB:["FOR"],VB:["FOR"],MS:["FOR"],HVB:["FOR","MID"],VVB:["FOR","MID"],
+  HM:["MID"],VM:["MID"],SM:["MID"],HV:["MID","ANG"],VV:["MID","ANG"],SP:["ANG"]};
+const ROLE_GROUP={MV:"MV",HB:"FOR",VB:"FOR",MS:"FOR",HVB:"FOR",VVB:"FOR",HM:"MID",VM:"MID",SM:"MID",HV:"ANG",VV:"ANG",SP:"ANG"};
 
 function playerValue(r){ return Math.round(Math.max(1,(r-25))**3 * 8); }
 function genName(team,i){ const s=hash(team+'#'+i); return FIRST[s%FIRST.length]+' '+LAST[(s>>>9)%LAST.length]; }
@@ -743,7 +805,126 @@ const REAL_SQUADS = {
   "Varegg": ["Alif Nojor Rahman","Marcus Gundersen Borchsenius","Mats Engeberg","Håvard Nødset Rosø","Lars Kallevåg","Heider Abdulridha Khalaf","Andreas Andersen","Christopher Wallem Veland","Aksel Claussen","Marius Sandtorv Bergset","Fredrick Rørstadbotnen","Brage Sandvoll","Nicolai Laberg","Ørjan Langåker Underhaug","Jacob Emil Tornes","Magnus Eidesvik","Oscar André Fanøy Nordal","Sindre Eknes Adolfsen","Johannes Bakke Hagesæter","Ali Qasemi","Andreas Velle Waraas","Kristoffer Saltnes"],
   "Åsane 2": ["Thomas Nielsen","Johannes Kvammen","Vegard Prestnes Jørgensen","Torjus Frøland","Dennis Sennesvik Bjørkestrand","Nils Mathias Elvebakk","Markus Aas Bergstrøm","Fredrik Aasen","Glenn-Ruben Makarewicz","Sondre Eberg Fimreite","Matias Herdlevær Refvik","Isak Øyre Nundal","Joachim Skjold Skålevik","Luka Aaker-Saldanha","Edvin Muhic","Amund Fossum Sundsøy","Malte Fismen","Oddbjørn Ones Dale","Lukas Finnøy","Surafel Ijara Aredo","Johan Flageborg Lie","Adam Anthun Bachmann"],
   "Austevoll": ["Simen Bratten Gjövag","Tor Eirik Nordtveit Tøkje","Henrik Melingen","Öystein Eidsheim","William Veivåg","Steffen Skår","Magnus Skartveit Møgster","Tord Harald Skår","Daniel Hufthammer","Aaron Alvin Ssabunyo","Christian Haugland Mikkelsen","Noah Møgster Heggestad","Joachim Bjånesøy","Nils Andre Bjånesøy Eidsheim","Graham Aleksander Ramsay","Mikkel Østervold Hatlevik","Marcus Dalseide","Steffen Andre Skår","Jesus David Rendon Quinones","Gustav Rabben","Jonathan Skår","Gabriel Alain Ramsay"],
-  "Gneist": ["Daniel Tveit","Ryan Schiavetta Horneland","Henrik Bjørge Andersen","Magnus Vikedal","Tobias Nord Arnesen","Tobias Melkevik","Sander Lønne Dyngeland","Sindre Christiansen Aga","Simon Georg Harberg Sele","Jesper Holmøy","Tim Nicholas Ulvik Bjørnset","Even Christopher Thoresen-Rasmussen","Tobias Breivik Sagstad","Sina Rashid","Oliver Majewski","Fredrik Mikal Nyegaard","Jonas Toftesund","Marcus Fandino","Abraham Johnny","Sondre Eide","Hans-Fredrik Brosvik Holst","Mathias Kverhellen"]
+  "Gneist": ["Daniel Tveit","Ryan Schiavetta Horneland","Henrik Bjørge Andersen","Magnus Vikedal","Tobias Nord Arnesen","Tobias Melkevik","Sander Lønne Dyngeland","Sindre Christiansen Aga","Simon Georg Harberg Sele","Jesper Holmøy","Tim Nicholas Ulvik Bjørnset","Even Christopher Thoresen-Rasmussen","Tobias Breivik Sagstad","Sina Rashid","Oliver Majewski","Fredrik Mikal Nyegaard","Jonas Toftesund","Marcus Fandino","Abraham Johnny","Sondre Eide","Hans-Fredrik Brosvik Holst","Mathias Kverhellen"],
+  // ---- 3. divisjon Avd 4 (Rogaland/Agder/Telemark) – TM/FotMob 2026 ----
+  "Brodd": ["William Heddeland","Adrian Schou-Andreassen","Vetle Dalva Revheim","Nicolai Miljeteig","José Alejandro Valecillos","Isak Mydland Dahlseng","Thomas Hellestø","Sander Halvorsen","Gabriel Rehman Horpestad","Sindre Håland","Viktor Emil Hovland","Martin Sveingard","Casper Aalen Norseng","Martin Mossmann","Bastian Eikeland","Storm Aleksander Kristensen Skandsen","Oscar Sagland","Marius Borsheim Fardan","Liban Ali Abdi","Sindre Haarberg","Isak Hellevik Hebnes","Henrik Westlye Haugvaldstad"],
+  "Fløy": ["Markus Kristiansen","Heine Danielsen Møll","Morten Stakkeng Vang","Jakob Sannes Hornnes","Ola Rønningen","Jesper Gravdahl","Johannes Eftevaag","Nikolas Brandal","Drilon Ibishi","Johannes Tønnessen","Rafa Mertens","Mathias Myhre Madsen","William Drange Johnsen","Dirirsa Gamachis","Henrik Andersen","Preben Skeie","Levi Eftevaag","Tobias Kaas Knutsen","Adrian Barosen","Andreas Endresen","Joakim Grude","Aksel Rannestad Kloster"],
+  "Haugesund 2": ["Frank Stople","Sebastian Lønning","Mats Hjalmar Næss","Sondre Dybvik Ekrene","Nikolai Mæland","Petter Gismervik Storjordet","William Kaldråstøyl Valenza","Birk Træet","Pål Engseth Lie","Vegard Solheim","Christian Lubingo Inkundji","Robin Erland Lervik","Gustav Olsen Holmen","John Thomas Idehen Kvinnesland","Almar Grindhaug","Fabian André Jakobsen","Ismaël Seone","Sander Hauge Christiansen","Daniel Reine-Haraldseide","Nikolai Tendal","Jone Flakke-Bjørnsen","Sondre Nilsen Nordvik"],
+  "Hinna": ["Sondre Naaden Fosså","Ole Markus Wroldsen","Aksel Berg Sandin","Arvin Gergerechi","Lars Remoquin Skogland","Elias Rashidizadeh Dale","Ola Groven Bech","Aldon Sallabegolli","Rasmus Martinsen","Jonas Øvstun Jørgensen","Erlend Drechsler","Mikal Aga-Mæle","Magnus Nyhammer","Fredrik Christian Rugland Thulin","Mats Dale Valvatne","Andreas Eiane","Ola Skjefrås Alsaker","Stian Langeland","Adrian Aas","Matthias Røed Randeberg","Natanael Temesgen","Sebastian Storm Rettore"],
+  "Madla": ["Lukas Hjorth Helgeland","Petter Vassenden","Ulrik Torsteinbø","Embrik Aleksander Halvorsen Henriksen","Tom Adrian Abusland","Hossam Samir Ibrahim","Einar Holst-Larsen","Linus Fleischmann Salomonsen","Aydan Stean Scharpf","Ståle Sæthre","Thomas Leidland","Ståle Skårstad Haugen","Aleksander Gundersen","Adam Dahl Assad","Theodor Fiveland Seim","Fredrik Czybulla Marthinussen","Rolf Olav Hesby","Fredrik Osmundsen","Mathias Dessingué","Moses Leonidas","Christoffer Talge","Michael Odongo Sunde"],
+  "Mandalskameratene": ["Amund Wichne","Bård Høksaas","Sigve Eskeland Berge","Kjetil Berentsen","Isac Karlsen","Sigurd Larsen","Fredrik Stray Tjaum","Torje Wichne","Tobias Sira Hansen","Jesper Nodland Frajdenrajch","Amaldus Reme Lid","Thomas Aukland","Daniel Folserås Berglund","Alf Marius Melhus Abrahamsen","Daniel Selle-Lauritsen","Ian Håkonsen","Mathias Wiig Hagen","Martin Ramsland","Fredrik Antvort Soteland","Leif Isak Vinsjevik","Espen Walskaar Ramsli","Vetle Kolås"],
+  "Odd 2": ["Sebastian Semb","Storm Leander Øines","Eirik Dahl Krugerud","Jonathan Roaas Engen","Lars Riis-Eriksen","Godwill Ambrose","Benjamin Ekre","Carl Ludvig Kapstad-Rambekk","Samuel Skree Skjeldal","Julian Lerato Gunnerød","Mukhtar Adamu","Johnny Dangshing","Magnus Tande Flood","Sebastian Høyer Henriksen","Eirik Riis-Eriksen","Kristian Rodgers Holte","Oscar Yohannes Essayas","Abduljeleel Abdulateef","Elion Krosa","Isak Bae Eikeland","Gabriel Occéan","Sigbjørn Kristoffer Naur"],
+  "Stabæk 2": ["Henri Sørlie","Ole Thibault Comtet","Márk Dömötör","Johannes Benestveit Haavik","Oliver Frost Eckardt Hansen","Jakob Hage Løberg","Fredrik Naustvik","Aleo Hatlebrekke-Skjei","Henrik Hytterød","Peder Hanche-Olsen","Fredrik Hoff Birch-Aune","Edvard Varvin-Kvamme","Sebastian Velten-Simonsen","Alfred Gustad Lie","Suleiman Osman","Lucas Myklebust","Oskar Dæhli Oppedal","Sixten Mathisen","Finlay Benjamin Olav Knox","Marcus Isane Kjos","Casper Bachke","Richard Ferrington"],
+  "Staal Jørpeland": ["Deniss Korneiciks","Simon Amdal","Samuel Jøssang Spørkel","Sigurd Kleven","Linus Kipperberg Kleppa","Jarand Veland","Eskil Fjelde Sel","Preben Løvås","Bartosz Widejko","Aleksander Hjelmervik Hinna","Eirik Wigdel","Ararat Shareef Omar","Steffen Helgeland","Kristoffer Ramsland","Aklilu Daniel Kubrom","Brage Woie","Adrian Stangvik Holta","David Eie","Lars Edvard Danielsen","Erik Steinsland","Jonatan Halsne","Ruben Mæland"],
+  "Varhaug": ["Ruben Dvergsdal","Rune Mjåtveit","Snorre Varhaug","Filip Halvorsen","Jostein Sinnes Tjensvoll","Arian Ødegård","Svein Terje Netland Sinland","Lars-Trygve Madland","Vetle Skjæveland","Tobias Bakken Dalbye","David Aksnes","Imre Ødegård","Are Bø","Rasmus Bøhn Auestad","Sondre Dvergsdal","Andreas Ueland","Narve Bø","Ådne Nærland","Ørjan Bulling Steffensen","Elion Shatri","Alexander Hjelmhaug","Noa Aarrestad"],
+  "Viking 2": ["Snorre Nygard Berg","Arn-Sebastian Wiik Escobar","Jens Koll-Frafjord","Mats Sekse Johannesen","Jonathan Debes","Magnus Oftedal","Elias Dahman","Aksel Tveit","Andreas Bjørnsen","Nour Monir Al-Mabhouh","Henrik Kvelvane","Sondre Tveiten","Max Sandåker Hagen","Emil Roland","Jacob Nordbø Middelthon","Elias Samuelsen Arifagic","Andreas Lie-Strand","Christopher Salvesen-Svenning","Ali Abdul Rahim","Sondre Bakken","Rasmus Gjelsvik Steigen"],
+  "Vindbjart": ["Elias Noel Dale","Sebastian Heggland","Dennis Lindekleiv","Christian Follerås","Severin Finnestad-Stray","Lars-Georg Henneli Reinlund","Dennis Glatved-Prahl Myrvold","Daniel Tørressen Eikeland","Noah Heggestad","Xiaolong You","William Strandskogen Krogh","Arda Køse","Thomas Ree Jensen","Marius Larsen Alfsen","Elias Lunde Tusvik","Martin Heisel","Emil Lie","Henrik Vatland Heggland","Robert Våge Skårdal","Mustapha Fofana","Sander Svela","Kawsu Jabai"],
+  "Våg": ["Michael Crowe","Harald Johannes Mosvold Christophersen","Ron Quranolli","Bendik Kristiansen","Henrik Frustøl","Elias Kjøstvedt","Rolf Daniel Vikstøl","Sebastian Fjellheim","Fredrik Haldorsen","Sedat Ninno Dağ","Marcus Vassnes","Albert Erklev","Salai Ling Om Mahlaw","Daniel Alexander Roppestad","Josef Rahman","Simon Anders Salen Aune","Aleksander Degerstrøm","Brian Stangnes Kjeldsberg","Felix Schröter","Sander Barstad Bergan","Ahmednur Abdirahim Mohamud","Aksel Aamlid"],
+  "Åkra": ["Tom Olav Olsen","Vegar Snare Vågen","Kjetil Magne Nilsen","Gabriel Apeland","Eivind Høvring","Erlend Drivenes","Anders Underhaug","Jakob Rasmussen","Jan Anders Langåker","Ruben Rasmussen","Eirik Torkellsen","Jesper Thorsen","Henrik Thorheim Ådland","Gabriel Ferreira Kvilhaug","Theo Idsø","Jonas Gaupås","Sebastian Grindhaug Schnabel","Magnus Joan Pablo Knutsvik","Elias Gaupås","Elias Sirnes","Jakob Simonsen","Sindre Weltzien"],
+  // ---- 3. divisjon Avd 5 (Nord-Norge/Østlandet) – TM/FotMob 2026 ----
+  "Skedsmo": ["Martin Carnarius Mansaas","Caspar Hemstad","Elias Høines Julsrud","Lars Andresen","Jørgen Olav Sveinall","Birk Kvitting Øian","Vetle Røhne Nilsen","Mathias Storvik","Jonas Fernando Haakonsen","Håkon Gravningen Johannessen","Mohammed Yassir Eldirawi","Alexander Aksnes","Eirik Risberget","Mathias Enge Railo","Eirik Berg Kaldbekken","Arild Landau Werner","Jasman El Boumlali","Jens-Herman Haukeland","Tobias Remme","Jakob Klæboe Pedersen","Brage Aasen","Elliot Berbu Engebretsen"],
+  "Fauske/Sprint": ["Philip Storli Hansen","Eirik Velle Strømsnes","Kasper Josefsen Bakkemo","Mathias Kosmo Skau","Simen Nyland","Erik Setså Borge","Adil Farah","Andreas Wold Gleinsvåg","Tobias Emil Johansen Alexandersen","Markus Olsen","Fredrik Bjørnstad","Petter Ferdinand Bangfil","Julian Andreas Olsen","Stian Sørdahl","Rasmus Wisth","Herman Monssen Furumo","Donat Berhane Tsegay","Petter Valla","Emil Hansen","Sondre Svemo Nyland","Richard Johansen Halvorsen","Magnus Johan Klaussen"],
+  "Finnsnes": ["Michael Andersen","Håkon Rismo","Øystein Robinsønn Norheim","Henrik Fløgum","Noor Abdi Hussein Ahmed","Theophile Iragi Chirongozi","Jakob Berglund Jakobsen","Jonas Andre Christian Alapnes","Christian Arnesen","Sivert Ludviksen","Roni Gebregziabher Teclai","Lasse Lovin Bendiksen","Mathias André Eide Nikolaisen","Eskil Leander Skoglund","David-Andreas Løkke","Niklas Johan Sörensen","Jovan Radocaj","Mathias Sandvik","David Mathias Eilertsen","Kenneth Matthew Winther","Audun Berntsen Løvland","Joachim Sebulonsen"],
+  "Fløya": ["Jonas Myhre","Vemund Dahl","Nemanja Masic","Sebastian Johnsen Warvik","Vebjørn Bye Amundsen","Eskil August Rønning Imøy","Sigurd Ekrem","Storm Espolin Andersen","Oskar Uteng","Magnus Børsheim Kalstad","Martin André Berg","Sander Egerton","Ask Wilhelm Henriksen Valen","Meron Rekka Ghilazghi","Lukas Lundstrøm Stokkedal","William Kristoffer Dahl","Kåre Skogvang Pedersen","Kenny Marblow","Hunor Bogdán","Lukas Elijah Beck-Hansen","Sivert Lind Olsen","Scott Alexander Fitzgerald"],
+  "Alta": ["Maris Eltermanis","Aleksi Honka-Hallila","Sindri Huxley Arnason","Elias Ellingsen","Adam Hålas","Tobias Vonheim Norbye","Aidan Ettouati","Yegor Smirnov","Niklas Antonsen","Hans-Jørgen Sund Mikalsen","Marius Solbakken","Kristian Holsbø","Adrian Sandbukt","Felix Jacobsen","Christian Reginiussen","Nazar Martynenko","William Aksel Bratvedt","Leon Stenvoll","Gabriel Filip Åkesson"],
+  "Lillestrøm 2": ["Luka Maric Veum","Lazar Babic","Johannes Burdal","Younes Aalili","Betim Hasanaj","Ilias Bouyambib","Mats Brede Ekra Olsen","Melvin Rogert Kristiansen","Amund Sæther Arntsen","Ole Alexander Haga","Isa Daniel Jallow","Leo Aastorp","Ivar Wiliam Vidaurre Winje","Lukas Bårdovich Prestholt","Wahib Fadil","Armand Thoresen Wangen"],
+  "Kongsvinger 2": ["Sebastian Nærum Ekerhaugen","Johannes Marinius Simonsen","Oliver Bjerke Reierstad","Iver Elseth","Daniel Lysgård","Elias Berstad Tenden","Jakob Kvittum Konterud","Aron Wilhelmsen","Noah Theodor Nielsen","Eirik Ytreland","Eldar Nakstad","Matvii Ostrishchenko","Troy Fjukmoen","Scott Wilhelmsen","Andreas Dønnum","Liam Oluyemi Norderhaug Bråten","Fredrik Tunhøvd Bøsterud"],
+  "Strømsgodset 2": ["Simo Lampinen-Skaug","Sokrates Sveia Krossen","Simen Skancke Elind","Hermann Loe-Eriksen","Sigurd Eriksrud Askland","Viktor Bretvik","Teo Sebastian Kaland","Isac Tostrup-Kval","Sigurd Dystland","André Stavås Skistad","Rafal Chverenec","Leon Hellesø","Markus Naasen Kvale","Mads Mosebekk Larsen","Elias Horne","Emil Juel Bache","Noel Kovács","Ole Enersen","Kevin André Dæhlin","Mats Spiten","Sean Healy Andresen","Marius Østbye Eriksrud"],
+  "Skjervøy": ["Heljar Mikalsen Olsrud","Thomas Kristiansen","Peder Braathen Folstad","Bjørn-Are Aronsen","Irian Isaksen Høyer","Jostein Pedersen","Mats Solem Bakkeland","Konstantin Cvetkovic","Ulrik Marinius Reingjerdskog","Alf Sindre Einevoll","Vebjørn Dahle Bakland","Markus Karlsen Skogheim","Michael Fransisco Santana","Tenji Abdella Tenga","William Alm","Erlend Pedersen","Gabriel Inacio Dahl","Viljar Berg-Johansen","Dovydas Zala","Ørjan Skallebø","Emil Pedersen Winther","Magnus Lawrence Mahusay Larsen"],
+  "Harstad": ["Jonas Aleksander Olsen Kristengård","Alvaro Rodriguez Alonso","Tobias Isaksen","Stian Christensen","Sander Esaias Ingebrigtsen","Eirik Christensen","Johannes Adrian Lund","Noah Leander Bendiksen","Theo Solheim Bergersen","Erling Fagerland","Kasper Harjo Akselsen","Kornelius Olaie Nordmo","Fredrik Andreassen Killie","Johannes Lindquist","Filip Klæbo-Solemdal","Jonas Vasseng","Aaron Nathan Sanquina Bakkemo","Hans Ailo Siri","Gabriel Andersen","Thomas Windstad","Amar Zulovic","Gabriel Fjellvang"],
+  "Tromsø 2": ["Ole Kristian Lauvli","Jakob Durdi","Oliver Gudmund Østman Ottesen","Einar Høgetveit Jølle","Celius Kristoffersen","Lucas Jensen Wiik","Isak Kleczka","Nikolai Hansen Steffensen","Gard Harjo Haugsnes","Elias Molund","Daniel Ailo Sakshaug Bær","Sigurd Olsen","Nicolas Haugan","Noah Berger","Jonas Gärtner","Edvard Bjerkaas","Julian Lind Olsen","Adrian Evensen-Jensen","Sebastian Mihai Asan","Ludvig Hestness Gjertsen","Patrick Andre Strand"],
+  "Skjetten": ["Michael Lie","Lucas Berg Haagenrud","Christiano Abilio Nystad Monteiro","Amir Adjou","Sondre Sagen","Mário Alexander Monteiro","Husam Mohammed Hassan","Morten Skjelle Paulsen","Wael Rachrach","Mansour Gueye","Romeo Vergnolle","Mohammad Ibrahim Alkabra","Tor Henrik Kjølen","Enes Shehabi","Mohammad Samih Tleimat","Henrik Brest Knutsen","Jonathan Monteiro","Odin Solheim","Anas Chaminta Ntiso","Markus Francis Bådstøløkken","Walid Khris","Elias Benjaminsen"],
+  "Ulfstind": ["Gudmund Kongshavn","David Johnsen","Frank Even Bergheim","Simon Leander Haugen","Ole Andersland Riise","Julian Rosalio Kristiansen Aloyseous","Emil Andreas Haugen","Eivind Vold","Brage Fjellheim Wiik","Andreas Fiva","Dennis Emilian Bryne","Christoffer Yndestad","Mikael Schjølberg","Thomas Johannes Isaksen","Tom-Erik Strandli","Vegard Solhaug Brekke","Trym Brendstuen Mauno","Kristian Engstad Zachariassen","Vegard Lysvoll","Birk Berg-Johansen","Ole Marius Jørgensen","Jørgen Kilmark Tønnessen"],
+  "Bossekop": ["Jonathan Linnes","Theo Gaup Nilsen","Lukas Friesen Wiik","Kristian Skorpen","Eskil Dagsvold Berg-Hansen","Joachim Fossmo","Ovlla Leander Eira Stamnes","Joel Sommerli","Simon Sommerli","Kai Espen Balto","Runar Ek Esjeholm","Peter Aas","Arle Ivar Ring","Isak Hunsdal Fallsen","Lars Henry Elvedal-Johansen","Elias Hunsdal Fallsen","Leander Heitmann Adamsen","Ulrik Koht Johannessen","Jørgen Bull Kristensen","Jørgen André Amundsen","Thomas Myreng","Vebjørn Atle Skorpen"],
+  // ---- 3. divisjon Avd 6 (Østlandet/Innlandet) + Kvik (Avd 2) + Sogndal 2 (Avd 3) – TM 2026 ----
+  "Lillehammer": ["Dylan Silva","Espen Evenrud Kjetlien","Sahan Wacays","Kristian Pettersen","Kasper Nordsveen","Sigve Rustad","Nathan Ndifon-Ewere Lenga","Henrik Sundgaard Holberg","Trygve Schreiner","Apipon Tongnoy","Simen Rasmus Renolen","Arne Ødegård","Nathan Holder","Olav Halvorsen","Mathias Leander Bølien Nygård","Jakob Hassan","Christian Dahl","Martin Husmoen Gjævenes","Simen Hammershaug","Deniz Christoffersen","Abdulmajid Kamal Abdulkadir","Preben Finstad"],
+  "Gjøvik-Lyn": ["Rafael Veloso","Even Nordli Eriksen","Mathias Moe","Ulrik Domben Rognaldsen","Adrian Stokke","Jonas Chandee-Løken","Aleksander Sulland","Oscar Olsen Sangnæs","Thorbjørn Bellon Kristiansen","Oskar Sangnes","Kristoffer Ring Voldhagen","Jonas Dalen Korsaksel","Erik Slåtten","Mathis Thyli","André Brekken Weddegjerde","Ben Rossiter","Simen Brenden","Linus Skarseth Nilssen","Simen Lofthus Østerud","Håvar Befring","Moses Nyembo","Kristoffer Skjåk-Bræk"],
+  "Råde": ["Oscar André Pedersen","Thomas Skjødt Johansen","Tobias Dyrseth Larsen","Ervin Kozica","Lucas Hans Gustaf Nilsson","Genjon Kavaja","Arber Rexhaj","Jacob Barrow","Benjamin Stensland","Netan Sansara","Elias Haug","Jonas Paus","Robin Thomassen","Oliver Slettum Fredriksen","Jonathan Elias Svendsen","Fredrik Stokke","Dana Montana Peroti","Andreas Hermansen","Tobias Eugen Guttulsrød","Abubakar Hussein Sharif","Deni Hasanagic","Martin Langsæther"],
+  "Sandefjord 2": ["Daniel Gjone Dobbe","Gard Robertsen","Emran Ahmadi","Ola Reinert Bredvei","Oskar Loftesnes-Bjune","Per Reinert Bredvei","Anders Bjerknes Thorgersen","Linus Brathagen","Iver Lunde","Oscar Edwards Jørgensen","Ole Aanvik Wingsternæs","Edvard Cornelius Røberg","Kristoffer Halvorsen","Elias Vincent Johnsen","Elliot Gunnarsson Lavlund","Lamin Huchard-Nije","Vetle Holtung","Adrian Holtung","Mathias Døvle Lie"],
+  "Elverum": ["Andreas Hippe Fagereng","Adrian Grasmo Bergman","Fredrik Liberg Berg","Anders Eriksson","Jonas Jensbak Nysæter","Femi Olofinjana","Espen Olsen","Amund Møllerhagen","Enoch Kofi Adu","Stig-Aleksander Santiago Bjørnæs","Jesper Aasen","Ola Sveen Boldvik","Marius Damhaug","Daniel Dalehaug","Jørgen Fylling","Vladimirs Kamess","Jonas Enkerud","Magnus Solum","Nelsinho","Syver Bjørnebye","Nicolai Elander Berg","Emil Andreas Waldal"],
+  "Ørn-Horten": ["Kristoffer Solberg","Simen Solstad-Ramberg","Philip Andersen","Isac Lavik-De Lange","Vetle Schou Skullestad","Jonas Eldevik Lind","Lenny Falao Sørensen","Arnar Førsund","Sander Holseter-Karlsen","Thomas Knutsen","Alen Patros","Steffen Wivestad","Noah Johansen","August Vatne","Niclas Lavik-De Lange","Daniel Kubrom Hamde","Noah Molvær Antonsen","Pål Even Heggelund","Lars Magnus Takvam","Nathaniel Gashi","Andreas Ramstad","Peder Olai Mathisen Winge"],
+  "Oppsal": ["August Vesterhus-Jacobsen","Jørgen Grønlie","Sebastian Jakobsen Lihaug","Andreas Fredrik Haug","Markus Mork Rydal","Greg Dylan Dusabe","Sarim Mohammed Tariq","Lucas Fabian Flåten-Lindbæk","Denis Ramadani","Emil Christian Horn","Fredrik Slinning Thomassen","Musa Badjie Lowe","Ahmed Sakali Hidani","Junior Kamul Chike Okoye","Kristian Arman Garsjø","Danyal Akthar","Adel Touhami","Amez Shwan Mustafa","Adam Barrar","Jonas Ringstad Skottvoll","Vuk Fajfric","Mats Brændvang"],
+  "Drøbak/Frogn": ["Erlend André Foseidengen Jensen","Philip Haugan","Amund Gjersøyen","Mats Vågan","Tobias Gram-Caspersen","Nicolas Opheim Høihilder","Olav Bergstrøm Andersen","Mikkel Haukeberg Huseby","Trym Lind","Håvard Jonrud","Ole Jansson Berglien","Sondre Høydal","Sondre Stenbek","Emil Voldene Haugland","Felix Tomter Gray","Julius Ødegaard","Leo Emanuel Hagadokken Lenoci","Magnus Hart","Mikkel Aleksander Aarstrand","Mikkel Fodstad","Mathias Folkøy Woxen","Anders Brenden Solvang"],
+  "Rælingen": ["Atle Wilhelmsen","Kristian Hovind","Andreas Bjørsvik","Thomas Haugen-Sverud","Jesper Buer Bjarmann","Erlend Flaten","Eirik Sannum","Selmer James Solland","Filip Frostrud Larsen","Mikkel Nordengen Knudsen","Theo Alexander Davidsen","Adrian Aronsen Tjernsli","Trym Engja Rindal","Ludvik Aksel Tangen","Rohullah Azimi","Henrik Sandås","Emil Andreas Karlsen-Chavez","Oliver Eliassen Eike","Yad Swar","Jonus Buer Bjarmann","Emil Hognes-Olsen","Petter William Lind Schei"],
+  "Lyn 2": ["Tobias Johnsen-Kræmer","Mikkel Møller Gundersen","Wilhelm Frederik Daae Hrenovica","Emil Vold","Gabriel Erik Vik-Buet","Oliver Vartdal Nordgård","Kristian Kjerkreit","Aksel Eidsvik","Juuso Eemeli Nygren","Fredrik Sjåtil","Leon Fernandez Dalby","Isaac Barnett","Sivert Andreas Styrmoe Munch Rotevatn","William Hattestad Gautesen","Dawit Efrem Gherezghiher","Francis Bull","Victor Chammas Mangerud","Rayan Elmi Sharif","Fallou Sock","Håkon Eidsvåg Myhre","Godwin Victoire Diambilay","Ulrik August Daae Hrenovica"],
+  "Fram": ["Andreas Albertsen","Jeremi Maciej Kamecki","Magnus Simensen Holthe","Halvor Semb","Sigurd Skifjeld","Erlend Leonardsen Klausen","Philip Jonhaugen Ask","Mohamed Sahal Bile","Jacob Eftedal","Lorentz Rørvik Wentworth","Liiban Abdi Ahmed","Emil André Jevard-Skuland","Simer Yosef Kflesus","Uno Pedersen","Eivind Johnsen","Wayne Tyson Jr. Cole","Ki Nathaniel Lid","Abdul-Basit Agouda","Martin Engdahl","Preben Langmo Wold","Nicolay Ulvær Andersen","Adrian Bunjaku"],
+  "Sarpsborg 08 2": ["John Rune Alvbåge","August Fasting Risbråthe","Jesper Holter Skjøren","Lauin Nashuan Ibrahim","Magnus Knøsmoen Lunde","Jonas Hassel Pettersen","Eskil Graasten","Emil Majewski Sikkeland","Jesper Hystad Melleby","Mads Barret-Olsen","Aram Poya","Elias Ileby Nakstad","Rijad Hodzic","Håkon Finstad-Vogt","Eirik Paulshus Vold","Emil Orud Torp","Szabolcs Büki","Bop Guèye","Martin Andreas Bakkenget","Johannes Rogne Fjærvik"],
+  "Brumunddal": ["Oliver Heggelund","Asgeir Spigseth","Magnus Iversen","Eivind Strand Osmo","Erik Sagstuen Nysæther","Emil Innselset Nordeng","Anders Ludvigsen","Jesper Hagelund","Herman Alexander Evensen","Syver Karlsen","Jesper Heggelund","Torgeir Osmo","Markus Holthe Lund","William Oliver Karlsen","Julian Eriksen Høsøien","Mathias Nilsen Hjemsæter","Kasper Sørum","Jørgen Strømeng","Jørgen Hårseth Holmlund","Markus Haave Andersen","Christian Lilleøen Ruud","Raphael Xeno Skøtt Dahl"],
+  "Bjørkelangen": ["Ahmed Jouini","Even Vestreng","Hans Marius Granerud Fjeld","Ola Byfuglien","Marcel Mendyk","Martin Søbye","Kristian Sether","Mathias Ringstad Holmedahl","Paul Driscoll","Ola Haugerud Ness","Melih Can Danacı","Jon Emil Holm Olsen","Eirik Holm Olsen","William Norheim-Bergquist","Ali Riad Abdel Amir Al-Nashi","Saied Muslem Hashimi","Nicklas Hoffstuen Johnsrud","Ola Vestreng","Henrik Aas","Tobias Torre","Ola Bjerkenes","Hampus Helgerud"],
+  "Kvik": ["Francois Guillemot Venn","Jakob Kaas","Henrik Skaugseth Hagen","Tobias Ludviksen","Viktor Haarberg","Birger Olav Sætre","Karl Nesse Wiig","Eskil Andreas Øien","Aleksander Stamnes Vavik","Tevje Rønning Torp","Jasem Mareno Bavi","Oskar Sandvik","Jacob Landro","Thomas Grønning","Hadi Karimi","Marius Blåsmo Norderud","Sebastian Reinke Kristensen","Skage Giljarhus Storheim","Oscar Kaplanski","David Melkvik","Ramy Labreche","Iben Elias Berntzen Kirkhus"],
+  "Sogndal 2": ["Martin Opheim Østli","Ard Ragnar Sundal","Ulrik Svensøy","Mats Wehn Skjeldestad","Hans Pedersen Grønningsæter","David Kongelf","Theo Ruud Westgård","Jonas Henjesand Sætre","Emil Lunde Hillestad","Sander Sjøthun Heggestad","Markus Lazaro Mannsverk Bringas","Elling Ingeson Kvåle","Sigve Årdal Ølmheim","Julian Gjervik Madsen","Mathias Krogh Ravnestad","Khadar Abdi Ibrahim","Lukas Lemvik Vigdal","Nicolai Aske Granheim","Sverre Stavø","Viljar Stavø","Sondre Solstad Herfindal","Mohammad Ali"],
+  // ---- 4. divisjon Avd 1 (Stavanger-området) – TM/FotMob/fotball.no 2026 ----
+  "Sola": ["Sverre Olav Joa","Vegard Føyen","Mirkan Cevdet Buğurcu","Abdiasis Ali Hassan","Sander Mathiesen Bærheim","Said-Emin Muradovitch Makaev","Anders Haugen","Kittinan Kaeophu","Asher Tadesse Hadgu","Niama Haidary","Kristian Feed","Benjamin Brekke Munkvold","Andreas Kjærland-Haga","Mattias Haugen","Jonatan Rasmussen","Herman Haga","Ask Christiansen","Zaid Salameh Aldae","Mehdi Kralkallah","Adrian Hordnes Elde"],
+  "Riska": ["Hakon Smalas","Andreas Smalas","Rene Duas","Knut Haugland","Eirik Olsen","Daniel Jacobsen","Morten Ommundsen","Anders Ommundsen","Kjetil Fjelde","Runar Fløysvik","Atle Soma","Thomas Vier","Sindre Stangborli","Geir André Aasen","Torger Motland","Vetle Myhre"],
+  "Hana": ["Marko Berg","Morten Helmen","Anders Bauge","Fredrik Ommedal Hafnor","Stefan Berg","Thomas Gabriel Minde","Linus Monsen Furenes","Einar Kvalbein Skjørestad","Vegard Kvalbein Skjørestad","Casper Svarstad Hebnes","Joar Kvalbein Skjørestad","Erlend Gudmestad","Glenn Bungum Levang","Niclas Dolmen Håra","Christian Øen Lithun","Nichlas Thulin Kamfjord","Henrik Andreas Dybdahl","Henrik Malde Breimyr","Theo Svihus Gramstad","Eirik Skavhaug Larsson","Jesper Sundem Barlaug"],
+  "Ganddal": ["Håvard Sannerud","Jesper Meisland","Jørgen Bærheim Borgenvik","Daniel Brun Bjelland","Lars Henrik Bjørnå","Gøran Wigestrand","Marius Ørn Høiland","Ole Marius Tjernagel Elgesem","Anders Imsland","Mark Alvin Skeie","Trym Einar Thesen","Jacob Eikeland Grova","Samuel Ole Tjelta","Jan Erik Gilje Jakobsen","Jakob Eikeland","Johannes Nordgård","Nathaniel Andreassen","Sigmund Lende","Milian Lode","Fredrik Torsteinbø"],
+  "Frøyland": ["Daniel Kalhovd Kvamme","Sigbjørn Skjæveland","Ragnvald Soma","Rune Pedersen Bore","Berge Ohm","Kristoffer Mohn Kverneland","Eirik Hadland","Espen Ravndal","Jone Kleppa","Cato Hansen","Tommy Tønnesen","Petter Øfsteng","Eirik Bergli"],
+  "Klepp": ["Mathias Brænd","Tomas Kyllingstad","Stian Braut","Thomas Undheim Hatteland","Tormod Fjelde","Martin Andreas Grødem","Anton Moi","Kristian Barka Braut","Theodor Tobiassen","Sindre Kyllingstad","Emil Kaspersen","Peder Liamo Hisken","Johannes Stokka","Simen Sele","Even Engelsgjerd-Kvål","Kasper Håland","Sondre Høyland Asheim","Mathias Melum-Hansen","Snorre Kleppe","Artur Kryvobok","Roderick Stoffel van Iwaarden","Jonas Vold Torland"],
+  "Sunde": ["Sakarias Rolland Ågesen","Vegard Rasen","Ole Soma Hjelle","Martin Halsnøy","Kjartan Olsson Hauge","Kristoffer Ree","Kristian Kydland Revheim","Jarle Nordbø","Markus Hognestad","André Sande Maribu","Emil Birkedal Øvstebø","Jørn Hornseth","Jonas Tytlandsvik Johansen","Mats Haugland","Benjamin Pekmezovic","Ermias Solomon Habtegabr","Noah Serigstad","Axel Ferdinandsen Lønseth","Abel Yibo Beyene"],
+  "Buøy": ["Petter Høie","Bjarne Jonassen","Håvard Ulla Linga","Sivert Stapnes Goa","Anders Jonassen","Ole Patrick Mauritzen","Henrik Øen Delis","Theodor Lind Jensen","Hans-Tore Henriksen","Jonas Jonassen","Sander Husebø","Morten Adamsen Husvæg","Tobias Trondsen","Emanuel Evertsen Omane","Erlend Wiull","Simon Kaland"],
+  "Hundvåg": ["Jonas Thorgersen Laukvik","Nikolai Kavli Opsanger","Morten Melkevig","Fredrik Myhre Gjerde","Kristian Høvring","Martin Overvik","Lars Løkling","Steffen Bøifot","Mathias Helland Olsen","Jonas Halvorsen","Erik Berg Mauritzen","Nikolai Lyngnes Ramsland","Preben Erland"],
+  "Vardeneset": ["Marius Kastet","Ørjan Aronsen Ellingsen","Samir Habibi","Christian Stokkeland Askeland","Oliver Gjøse Bertelsen","Daniel Robin Nustad","Sebastian Hammer Larsen","Eirik Birkeland","Joakim Berg Holter","Marcus Laursen","Sebastian Gjesdahl Aase","Maekele Michael Weldessilasie","Sigurd Helliesen Frøystein","Petter Haukali","Mikal Hebnes Olsen","Jaran Helmichsen","Azad Jørgensen","Matias Kleppe Reinsnos","Eirik Jakobsen","Morten Eriksen","Ceu Lian Khar","Lars Holm Larsen"],
+  "Forus og Gausel": ["Espen Øvretveit","Markus Pedersen","August Dahl-Strønstad","Dennis Zhilivoda","Magnus Flokketveit King","Magnus Fjogstad","Ole Kristian Hovland Larsen","Hicham Billa","Haakon André Pollestad Hundsnes","Jørgen Rosnes Hansen","Karl Magnus Torgrimsen","Simen Melhus","Truls Fjeld Gudmundsen","Mikal Rødde Hjorteland","Kristoffer Kommedal","Alexander Rettedal","Nevill Sofo","Christoffer Holmebakken Salte","Runar Haheimsnes Engebretsen","Vetle Berg Johnsen","Cairo Lima","Simen Roland"],
+  "Figgjo": ["Vidar Skjeggestad Assersen","Kasper Johan Idland Skjæveland","Tryggve Tobias Korneliussen","Ole Føreland","Christer Oftedal Vestly","Kenneth Fuglestad","Håkon Berge","Sondre Aano Lima","Aleksander Boge Nilssen","Fabiano Augusto Kristiansen","Henrik Idland","Svein Gøran Pedersen","Ali Aga Haidary","Ole Kjartan Bråstein","Isak Gebrehiwot","Jon Sivert Åsebø","Ørjan Johnsen","Sveinung Oseland","Sebastian Øverland-Tollefsen","Kieran Idland Skjæveland","Øyvind Espevik","Vegard Blikra Undheim"],
+  // ---- 4. divisjon Avd 3 (Agder + Bryne 2) – TM/FotMob/fotball.no 2026 ----
+  // (Vennesla og Flekkerøy mangler pålitelig kilde – de beholder genererte navn)
+  "Bryne 2": ["Jakob Apalset Vassbø","Kristoffer Orre Kverneland","Andreas Ghezai Grøttjord","Aleksander Voll","Mario Elias Bøe","Lucas Vold","Trygve Alsvik Lygren","Christoffer Voll","Espen Krogedal","William Vaule","Håkon Tveit","Aleksander Bratli Pedersen","Emrik Andersen","Aleksander Heggernes Thu","Kristian Skurve Håland","Emil Vassbø","Sølve Egeland","Farid Jabrayilzade","Joachim Årstad Gursli","Daniel Ellingsen Hodneland","Jaran Eike Østrem","Oscar Aleksander Pedersen"],
+  "Donn": ["Sander Våga","Emil Jacob Zimmermann","Sander Isefjær Ludvigsen","Morten Mykland","Anders Bergan","Jon Ole Reinhardsen","Mattias Breilid","Marius Hammersmark","Lars Øygarden Nordbø","Ola Thorsen Stangeland","Mads Quist Ness","Bjarte Richardsen","Jan Thomas Sandvik","Magnus Aamodt","Fabian Steen Finmark","Adrian Granåsen Hjelvik","Markus Andersen","Fredrik Hauglund Berge","Benjamin Torsvik","Anders Christian Bjørge","Sabaun Mir","Stian Ingebrethsen"],
+  "Søgne": ["Sindre Tjørhom","Johannes Kjøstvedt","Fredrik Repstad Hansen","Martin Skaiå","Dan-Roger Roland","Kevin Sørland Vigebo","Martin Førland Velle","Christian Rogstad","Morten Dalene","Jarle Rogstad","Hans-Robin Enoksen","Simen Sætheren Øfstbø","Markus Aamodt","Ditlef Ueland","Daniel Aamodt","Sondre Veel","Tasso Thomas Dwe","Magne Karlsen","Emiel Alexander Peersen","Theodor Benjaminson","Kasper Lian Lohne","Anton Nygård"],
+  "Express": ["Mathias Skjævestad","Emil Windegaard","Marius Aagre Larsen","Ole Svarstad","Teo Jørgen Peersen Hansen","Jonas Emil Dalen","Sijam Vincent Nuri","Tore Erik Skeimo Løvås","Elias Larsen","Eivind Boye Gundersen","John Emil Reinertsen","Mathias Wichmann","Ali Hossainy","Vitalij Bravikov","Even Misgna Zemichael","Eirik Husebye Sannæs","Daniel Lønning","Erik Gjerstad Beisland","Steinar Berås","Kent Erik Sellæg","Jakob Helland Kjølsrud","Yusef Omid"],
+  "Vigør": ["Georg Esperaas Dirdal","Christopher Fuller Mollestad","Niklas Eilertsen","Fredrik Kviljo","Sebastian Fevang","Johannes Lien Bischoff","Stian Mangseth Hornnes","Jesper Aamodt Hjortshøj","Ulrik Moen","Tobias Hyltner Evensen","Fitor Nika","Shihab Mohamed Abbas Ibrahim","Felician Jorn Fridrich Aas","Sander Helliksen Loen","Adi Dukic","Danial Ahmadi","Oleksandr Shurman","Ali Dib","Simen Schille Olsen","Dawit Ghirmay Andom","Ismael Bahij","Julian Vigeland Andersen"],
+  "Randesund": ["Herman Alsted Amundsen","Marius Wigardt","Felix Hagen Okalla","Kristian Lunde","Olai Benestad","Isak Breistein","Kristoffer André Hornnes","Henrik Robstad","Espen Knudsen","Diego Panique","Henrik Nyheim","Mats Vårdal","Brandon Caspar Kanyange","Stian Holbæk-Hanssen","Motuma Tilahun Abdisa","Daniel Høglo Nordvik","Ole Andreas Bjørnsgaard-Andersen","Even Enger","Magarsa Rassa Tilahun","Mathias Tønnessen","Markus Thomas Bjørnholmen Graham","Christoffer Lindberg"],
+  "Gimletroll": ["Ole Bru Egeland","Kim Edvard Kittelsaa Handeland","Emil Jørgensen","Sebastian Bergqvist Støle","Eirik Sebastian Benham","Ola Esperås Thunberg","Mats Koppang-Grønn","Martin Måreid Lundevold","Kristian Svenningsen","Idar Golf","Kasper Rugland","Håvard Søvik","Gøran Breilid","David Skuland Soltveit","Thomas Eikeland","Sander Tangen Christensen","Benjamin Frustøl","Cornelius Garlie","Leo Johannes Gutvik"],
+  "Trauma": ["Adam Rognli","Mehdi Shahriari","Jacob Lien Jomaas","Johan Sogorka Brinch","Mohsen Shahriari","Henrik Hegerlund","Jeremie Elepo","Marcus Hope","Mads Nørby Rønn Madsen","Jakob Rasmussen","Tor André Dalen","Reza Arezou","Erlend Øymoen Henriksen","Snorre Ulriksen Flatebø","Alex-André Hasselø Aanonsen","Brian Nordheim Haugenes","Adrian Siqveland Sunde","Aron Doru Lezeu","John Faranso","Simen Husum Hølleland","Jostein Egeland","David Anders Mackrill"],
+  "Birkenes": ["Kenneth Fossdal","Lasse Aamlid","Ole Morten Søbye Byremo","Edvard Wisløff-Ohrvik","Viktor Frigstad","Brede Haugen Bildøy","Elias Christiansen","Bjørnar Gitmark Hove","Kristoffer Suggelia","Eivind Flaa","Jonas Sæter Sundtjønn","Nicolai Aas","Ole Kristian Frigstad","Robel Muhur Gebrehiet","Knut Arild Espegren","Jon Frigstad","Vemund Mollestad Rislaa","Thomas Salvesen","Jonas Hauge","Johannes Vreim Jørgensen","Lukas Stordal","Elias Flakk Thomassen"],
+  "Lillesand": ["Håkon Nilsen Røste","Jonathan Jenssveen","Sebastian Håkedal","Jie Luu","Boo Gilbert Skuggevik Centeno","Isak Severin Berntsen","Dilmon Isak","Erik Tørring Enoksen","Sondre Haabesland","Patrick Le Gall","Abdullah Essa","Arbi Magomedovitsj Ismailov","Sebastian Ohrvik","Shun Phat Nham","Jan Fillip Bull Andersen","Kasper Glastad Mouridsen","Gustav Haugen Veiersted","Fredrik Danielsen","Khaled Özturk","Balder August Bratland","Maximillian Stephens","Kåre Magnus Helling Glamsland"],
+  // ---- 4. divisjon Avd 4 (Agder/Bergen) – TM/FotMob/fotball.no 2026 ----
+  // (Øygarden FK ble oppløst i 2022 – beholder genererte navn)
+  "Hisøy": ["Ramunas Purauskas","Filip Holter Nilsen","Sondre Emil Hauge Finstad","Adrian Bakke","Patrick Fiuren-Gustafsson","Sune Aagaard Kiilerich","Kristoffer Goonewardene Solvei","Michal Rafal Tlolka","Henrik Ryltoft Bertelsen","Ole-Emil Birch Gundersen","Markus Larsen","Noah Flatebø","Sigurd Mørner Retterholt","Martin Handaa Andersen","Christian Thue","Sebastian Eppeland Hansen","Herman August Krogstadholm Zachariassen","Sebastian Holter Nilsen","Henrik Heggland","Herman Smedsaas Blakstad","Isak Flatebø","Marius August Lønnhaug"],
+  "Start 2": ["Dennis Cornelius Birkenes","Børre Sirnes Kloster","Sondre Jørgensen","Johannes Grummedal Engenes","Leander Syvertsen Bjerke","Zakaria Rasouli","Elias Eriksen Aleksandersen","David Leander Nordvik","Gustav Vik","Magnus Netland Gudde","Fredrik Eidshaug","Bastian Norum Ruenes","Jacob Sheridan Kolbeinshavn","Nicolai Apland","Herman Waage","Emil Ogric"],
+  "Jerv 2": ["Thomas Babale-Grobæk","Nichita Golburean","Julian van Etten Ankersen","Mattias Breive Lauvrak","Håkon Heier Trondsen","Marius Holthe Gummedal","Simen Isene Domaas","Jesper Hasselgård","Maximilian Fallås Andersen","Andreas Havstad Kvifte","Henrik Dokkedal","Patrik Isaksen","Tobias Lærum-Johansen","Tage Christopher Jørgensen-Hofstøl","Markus Syvertsen","Noa Matias Berntsen Vinterstø","Fares Aiman Mohammad Abdalhalim","Lukas Gebeyaw Aynshet"],
+  "Smørås": ["Espen Birkeland","Martin Aandahl","Jelmer Hoekstra","Theodor Stensaker Nilsen","Mathias Thuestad","Ole Litlabø Eikenes","Håvard Flotve","Jonas Evensen","Håvard Fjellstad Langeland","Trond Ivar Eskeland","Sebastian Lothar Andersen","Ask Egeland-Sverdrup","Sander Simpson-Larsen","Yunus Tawfik"],
+  "Baune": ["Emil Kristoffer Rosvold","Nicolay Aall Tveit","Eirik Kristoffersen","Eirik Stokkanes","Marius Ylvisåker","Joakim Lokøy Nordøy","Daniel Rongved Østrem","Pål Mildestveit","Erik Dalstø","Anders Næs","Asgrim Tangen Farnes","Simen Godøy"],
+  "Loddefjord": ["Johnny Nguyen","Tobias Sæle Westrheim","Brage Skattebo","Nathan Daniel Harrington","Mathias Lundgren Nysæther","Kristian Gjerde Ødemark","Markus Vindheim Rivedal","Mathias Steffensen Svellingen","Matias Sekkingstad","Niklas Georg Andreassen","Nicholas Blumenfeldt Vindenes","Sigurd Stevnebø Kaale","Gutu Mohammad Taju","Martin Nyhammer","Henrik Vågen Hesjedal","Stian Lyseknappen","Mathias Johnsen","Marius Bildøy","Joachim Sæle Westrheim","Ebraheem Ahmed Riyad Missbah","Malik Mohammed Mohammed Miqdad","Ali Kamal Ali Abbas"],
+  "Tertnes": ["Gustav Aarre Mohus","Kristian Bell","Dennis Mindor Marøy","Fabio Antonelli","Christer Teigland Johansen","Sindre Flaa","Olve Opsvik","Noa Lingeskog","Hans Berge","Kristoffer Nilsen","Bendik Kristoffersen","Andreas Risnes","Peder Vareide Augestad","Stefan Storvik Pedersen","Frank Lilledal","Jørgen Nielsen Hornnes","Ivar Mykkelvedt","Eirik Nielsen Hornnes","Desmond Chappy","Edmund Chappy","Håkon Lund"],
+  "Arna-Bjørnar": ["Mathias Grimstad","Daniel Maria David","Thor Olav Fenne","Oscar Bakke Flaten","Rune Gravdal","Mathias Skaftun Boge","Øystein Aksnes","Tobias Nøss","Daniel Tangen","Espen Fedje","Martin Tysse","Preben Hille","Simen Næss","Joakim Vagenes Skjelbreid"],
+  "Nymark": ["Lasse Steffensen","Markus Mek Pedersen","Kristian Henrik Kårstad Lilleaasen","Håvard Meling Nesse","Adrian Valør Olsen","Daniel Navarsete Tonheim","Martin Asserson","Håvard Kroken","Hans Jørgen Bakkehaugen","Martin Johnsen","Ole Marius Cassidy Ones"],
+  "Trio": ["Aragon Thorkildsen Thorsen","Martin Fjeldstad Smith","Håkon Tarjei Sundsteigen Nes","Sander Saghaug Lillesletten","Brage Ripel Harsvik","Jakob Gjerde","William Saghaug","Brage Kvandal","Eivind Tufta Saghaug","Brynjar Sortland Olderkjær","Åsmund Eikeland Voster","Isak Rønstad Mo","Martin Lygre","Nicholas Aasen-Pedersen","Emil Haugan Solheim","Eirik Soma Ersland","Olav Bernhard Vågen Heggøy","Noah Tharaldsen Smith","Dennis Solheim Markhus","Nils Olav Smestad","Tristan Thorkildsen Thorsen"],
+  "Nest-Sotra": ["Øyvind Kleppestrand","Vegard Sangolt Ekren","Emil Kalsaas","Adrian Torsnes Arefjord","Ole Thomas Herrem","William Christoffer Eide","Steffen Arseth Ljosheim","Håkon Herdlevær","Jakob Thormodsen Høyland","Sander Reksten Bruun","Håvard Hammersland Blom","Ian Christian Datu Bull"],
+  // ---- 4. divisjon Avd 2 (Jæren) – TM/FotMob/fotball.no 2026 ----
+  // (Gjesdal, Kvernaland, Tananger og Vikeså mangler pålitelig kilde – genererte navn)
+  "Nærbø": ["Andreas Stokke","Erlend Kvia","Morten Nærland","Leif Arne Brekke","Vetle Aareskjold","Filip Håland","Elias Helgøy Fuglestad","Filip Ulriksen Rygg","Jan Isak Marin Johannessen","Jonathan Gudmestad Haugland","Ole Gabriel Kverneland","Benjamin Ravn Eriksen","John Thomas Marin Johannessen","Geir-Henry Dalemo-Espeland","Jonathan Lilleøre","Olav Valen-Knutsen","Tobias Risa Fylling","Joakim Aanestad Salte","Johannes Fjermestad","Kristoffer Friestad","Torben Krag"],
+  "Vigrestad": ["Adrian Lode Torkildsen","Tarjei Lode","Jan Ove Osnes","Elias Mæland","Fredrik Årsland","Sander Hegelstad","Anders Mæland","Noah Hegelstad","Ronny Stokkeland Egelandsdal","Jøran Solberg Håland","Elias Bakhtyari","Oddbjørn Braut","Kjetil Espeland","Tore Aamodt","Lars Mathias Madland","Eivind Mæland","Ola Stålesen","Mustak Bakhtyari","Adrian Andersen","Sondre Risdal","Sander Aanestad","Ole Magnus Rugland"],
+  "Ålgård": ["Marius Halvorsen","Steffen Olsson Bolme","Even Berg","Dennis Demirovic","Alexander Skavland","Markus Egelandsdal Sælevik","David Bregård","Mats Røisgaard","Teo Garcia Hjertvik-Bjelland","Sigurd Gjesdal","Benjamin Ravndal","Rógvi Baldvinsson","Kristian Novak","Steffen Aavitsland","Frank Aarthun","Amir Habibi","Sindre Karlsen","Arne Ravndal","Zabi Habibullah","Johannes Sletten Grüner","Henrik Kommedal"],
+  "Lura": ["Andreas Vandug","Marius Jørgensen","Jørgen Bruvik Nieuwenhuizen","Jon Petter Berg","Vidar Lura Kristoffersen","Anders Øen","Kristian Øen","Inge Knutsen","Sebastian Hølland","Askild Underbakke","Abdulai Samura","Sander Lygren Sigmundstad","Adrian Malmin Ims","Daniel Ruci Furuhaug","Vetle Johansen Nilsen","Sivert Reilstad Bratten","Vegard Eide","Ørjan Eikehaug","Leif-André Nygård","Rahmat Kazemi","Thomas Kristoffersen","Chathveik Anandhan"],
+  "Orre": ["Eivind Mossige","Dominic Pritchard","Thomas Nærland","Olav Mjåtveit","Thomas Erga","Magnus Braut","Fredrik Nevland","Jan Martin Hetland","Andrii Zubov","Jone Norheim","Fredrik Vigre","Rasmus Mæland Vigre","Joakim Jaarvik Aasheim","Olav Wiig","Ola Hella Andresen","Vetle Håland","Steffen Undal Hansen","Magnus Grødeland","Sven André Kyvik","Ordin Braut","Jøran Hadland","Svein Tore Havrevold"],
+  "Randaberg": ["Mikal Helmikstøl Nedrebø","Magnus Bjørkelund Kaasen","Marcus Helmichsen Prestegård","Mathias Harestad","Sebastian Røe Berg","Marius Naustdal Storevik","Noah Totland","Sonny André Flatø Bugge","Paul Endre Ullenes","Jesper Mikkelsen","Henri Grude Thoresen","Markus Eik","Navin Murugesh","Ahmet Dereli","Mathias Nag Rydningen","Erik Brathetland","Tobias Miron Moldenæs","Lester Andualem Gundersen Mitchell","Håvard Vindenes","Jonas Kristiansen Skjæveland","Lued Nordhagen"],
+  "Sandved": ["Bård Byrkjedal Berg","Anders Braut Egeli","Rune Aasland","Kåre Johan Henriksen","Cedrik Salvesen Larsen","Asbjørn Skjæveland","Marius Aasheim","Håvard Rosseland Vinnes","Ole Aasheim","Milad Rezai","Tobias Danielsen Skjæveland","Christoffer Thorsen","Thomas Sætre","Ola Braut","Samson Francis Clement","Denis Mehremic","Marcus Asbjørnsen","Morten Aasen","Livar Solberg","Elias Rettedal","Yngve Hagen","Martin Sandø Ophus"],
+  "Rosseland": ["Sem Aleksander Bergene","Anders Espeland","Espen Klovning Hansen","Kenneth Monsen","Jan Rune Hoff","Peter Time","Jarle Madland","Andreas Aarrestad Time","Tord Johnsen Salte","Anders Thorsen","Geir Dahle Høyland","Truls Vagle","Leander Seland Egeland","Marius Sørheim","Ola Selliken","Sondre Svalestad Hovland","Svein Arne Monsen","Øyvind Kverneland Braaten","Robert Undheim","Albert Tjåland","Ola Mæland","Edvard Aarstad Rasmussen"],
+  // ---- 4. divisjon Avd 5 (Vestland/Sogn) – TM/FotMob/fotball.no 2026 ----
+  // (Tornado Måløy, Jotun og Bjørnar mangler pålitelig kilde – genererte navn)
+  "Lyngbø": ["Edvard Larsen","Jakob Straten","Kim-André Damm Andresen","Sondre Riise Sævareid","Marcel Eltawafshy","Julian Waldemar Rasmussen Smørdal","Tommie Pettersen Langedal","Daniel Eltawafshy","Vegard Søren Holen Eimhjellen","Johannes Andreas Aslaksen","Isak Emil Røsbø Haukefær","Tom-Andre Klementsen Axland","Ørjan Lunde","Ivar Halland","Oskar Billing Karlsrud","Jørgen Davanger-Myren","Joakim Olsen Lunde","Kristian Davanger-Myren","Adrian Kosinski","Andreas Teigland Nilsen","Adrian Osa Sellevold","Ludvik Hope Skjeseth"],
+  "Bremnes": ["Aron Guest-Aksnes","Lars Østensen","Jørgen Kallevåg","Magnus Steinsland Sortland","Markus Habbestad","Benjamin Gasland Isaksen","Odd Kristian Habbestad","Daniel Våge Nilsen","Rémi Steinsbø","Mika André Agasøster Rinne","Ole Eidet","Andreas Eidesvik","Jonah Brekke Munkvold","Magnus Eidevik","Kato Gjermund Aasheim","Semir Negash Gebe","Nichlas Jensen","Pål Hollund Esperø","Ola Tvenning Mæland","Fredrik Hestenes","Alexander Vold Stavland","Khaled Yahya Aadaywi"],
+  "Fitjar": ["Ruben Træet","Ståle Gjøen Vestbøstad","Helge Myrmel Træet","Emil Sæterbø Fitjar","Mats Vik","Jone Nysæther","Lars Fitjar Waage","Daniel Skarpnes","Marius Sandvik Turøy","Birk Selsvold","Svein Herheim Junge","Reinert Børtveit Dahl","Sondre Fitjar","Jens Ragnar Våge Helland","Martin Føyen","Sander Hrafnsson Tverborgvik","Christian Andre Larsen","Emil Selsvold"],
+  "Stryn": ["Jon-Terje Tjellaug","Jan Marius Klepp Brekke","Lars Midthjell Gjørven","Isak Heggdal Skogen","Ole-Ivan Glosvik Espeland","Sigurd Fotland Fænn","Lukas Roksvåg Leirgulen","John-Erlend Bø","Johannes Fredheim","Marius Konstali-Lødemel","Oliver Veka Brath","Lukas Olai Lødemel","Tomas Eikenes Tjellaug","Nftaleim Henok Asfaha","Markus Olsen","Theo Sande Tenden","Fredrik Njøten","Nikolas Ullebø Hool","Håvard Gjerde Sandal","Noah Heggestad Ommedal","Mats Eikenes Tjellaug","Vegard Guddal"],
+  "Eid": ["Sondre Midthjell","Sander Torheim Frislid","Ove Andre Balsnes","Sindre Årskog","Johan Felde","Håvard Holmøyvik","Lukas Magnus Endal Andersson","Emilian Henden","Simen Lefdal","Henning Haugen","Tore Årskog","Daniel Haus","Jonas Beitveit","Noah Aleksander Taklo","Kristian Årskog","Kristian Lefdal","Joakim Frislid Vedvik","Henrik Vingen Vedeld","Oliver Holmøyvik"],
+  "Kaupanger": ["Tor Kristian Dulsvik","Ruben Rundsveen Bøtun","Eirik Hellebust Menes","Leif Andrik Teigen","Jacob Nummedal Engebø","Sindre Åmot Alme","Rune Vatnamot Åberge","Mathias Vik Vatlestad","Magnus Langen Dale","Sindre Rørvik","Henrik Johannessen Selvåg","Kristoffer Dalaker","Kim Andre Dyrdal Stokke","Sebastian Haugen","Geir Ove Engebø","Håvard Grøteide","Nalawi Foto Solomon","Christopher Skjær Brugrand","Aleksander Belland Eriksen","Jens Mo","Jørgen Dalaker","Jo Nikolai Haukås"],
+  "Årdal": ["Sigve Saur Midtun","Sivert Larsson","Kristian Lerum","Jesper Eldegard","Aleksander Hatlevoll Nundal","Morgan Ålsberg Tørnes","Kasper Bordvik","Oskar Grenager","Brede Stedje Ylvisåker","Kristoffer Eri Bjørkum","Øystein Riksheim Østvik","Johnny Hagen","Eirik Rode","Marius Loftheim","Espen Vigdal Rudi","Elias Mittet","Henrik Furebotn","Truls Hovland","Marius Wichne","Christian Stedje","Terje Kvam Øvstetun","Kevin Lægreid"],
+  "Høyang": ["Eirik Råsberg","Robert Huseklepp Alrek","Luis Alejandro Nedrebø Maureira","Sverre Drage Skreien","Sander Stølen Olsen","Eirik Sjøthun Måren","Emil Hatlestad","Nahoum Neguse Eyob","Julian Pettersen Agovic","Mentasenote Alemu Girmissio","Magnus Kyrkjebø","Jonathan Østerbø Breidvik","Bernard Breidvik","Benjamin Ramsli Lyeng","Joakim Sjøthun Måren","Daniel Skilbrei Aven","Daniel Pettersen Agovic","Michael Hansen Våge","Brage Bjørkhaug","Robel Yemane Brhane","Heine Austrheim Johansen","Caspian Tonning Hansen"],
+  "Florø": ["Herman Solheim Mortensen","Mikkel Fester Wurtz","Torkel Hammerseth Aarønes","Tobias Grotle Herstad","Christopher Dale Olsen","Simen Solheim","Christer Husa","Kim Vik","Martin Hollevik","Eirik Høydal","Dino Omerovic","Chrisander Eilertsen","Mats Sande Mallon","August Johan Ommedal","Simon Brekke Rebni","Mathias Hovland Bruheim","Kristoffer Ryland","Daniel Sagen Sundal"],
+  // ---- 4. divisjon Avd 6 (Møre og Romsdal) – TM/fotball.no 2026 ----
+  "Ørsta": ["Elias Vatne Nielsen","Andreas Skarmyr Egset","Tore Orten","Sigurd Aarflot Sundnes","Markus Halse","Eskild Dagfinrud","Henok Bisrat Tesfai","Matheo Remmen Bengtsson","Lasse Rebbestad","Øystein Grindland Bergersen","Nicolai Andrè Spilde","Reza Abouzari","Simen Tømmerbakk Flekke","Knut Erik Myklebust","Steffen Ervik Rekkbø","Steffen Øye Myklebust","Simen Rekkedal Nupen","Gaute Melle Trellevik"],
+  "Skarbøvik": ["Henrik Moss","Svein Egil Løseth","Henrik Synnes","Preben Torvanger","Øyvind Pickart","Oddvar Aarsaether","Joakim Melingen","Sondre Kjølsøy","Kristian Klementsen","Kenneth Kjevik","Vegard Olsson","Daniel Gjerde"],
+  "Bergsøy": ["Pedro Moreno","Sondre Nygård Olsen","Fredrik Muren","Pawel Jarzebak","Dani Rønnestad Hansen","Nils-Erik Engen","Daniel Sandvik","Simon Marcus Sieminski","Håvard Apelseth Hundsnes","Daniel Kvalsvik","Roald Andreas Runde","Kjetil Paulsen","Franjo Tepuric","Magnus Myklebust","Enrique Søvik","Frank Skorpen"],
+  "Hareid": ["Ole-Monrad Alme","Baraka Kazige","Daniel Dybhavn Haddal","Gabriel Olav Peterson","Erlend Rokseth Skeide","Asbjørn Wiig Sævik","Jan André Corpuz Sunde","Ørjan Grimstad","Lars Roar Holstad","Håvard Mork Breivik","Andreas Fjørtoft","Jesper Sundnes Sundal","Øyvind Hagen","William Fjørtoft","Ulrik Husø Johansen","Jan André Corpuz Nedregård","Mats Djupvik","Odin Bjørlykke Bakke-Hareide","Tobias Pettersen Hatløy","Lavrans Gustavsen"],
+  "Langevåg": ["Egil Gresdal","Johan Salen Nymark","Andreas Ashenafi Skotheimsvik","Lars Marcus Tynes Sunde","Karl Joakim Wrele","Vetle Fiskerstrand","Fredrik Digernes Nossen","Iver Standal","Vinjar Fiskerstrand","Julian Tios Soewandi","Kristian Robert Kirkpatrick","Marco Slyngstad Sandvik","Ask Veddegjerde","Håkon Vågnes Vadseth","Perry Waagan","Peder August Finholt Solevåg","Sigurd Vidhammer Tafjord","Jonas Aljon Vedde Ona","Lars Jensen Austnes","Donatas Skurdenis","Jonas Vidhammer Tafjord","Simon Vågnes"],
+  "Rollon": ["Jonas Mathiesen","Eirik Marstrander Nedregaard","Anders Giske Hagen","Lage Hoel Haadem","Inge-André Godø","Vemund Hole Vik","Theo Gidney","Børge Gulbrandsen Drevik","Daniel Rusten","Nikolas Hjelset Hay","Theodor Rongved Østrem","Emil Solnørdal","Marius Myking Waagan","Anders Johann Dyb","Peter Alexander Stivang","Anders Waagan","Mohamed Babo Ali Maridi","Jakob Grindberg","Trond Stavset Fagervoll","Stian Sunde","Ulrik Paulsen Myklebust","Alexandros Anghel"],
+  "Valder": ["Peter Thu Utheim","Felix Telvik","Andrei Florica","Nathanael Sæther Bordom","Erik Skjong Haglind","Oskar Telvik","Simen Skuseth","Markus Elias Molnes Tellnes","Shafi Mahdi Elmi","Steffen Bakke Elde","Herman Clausen Skjong","Liam Nordstrand Nilsen","Thomas Bjørlykhaug Skjong","Are Molnes","Ruben Haram Johnsen","Odin Ommundsen","Arthur Abdul-Bekovitsj Arsnukajev","Filip Sæther Bordom","Nikolai Grebstad Haglind","Tobias Nicolai Nordhus","Erlend Synnes Skjong","Anders Hole Oksnes"],
+  "Surnadal": ["Ola Hoel Lervik","Jens-Sigurd Høiback","Torstein Snekvik","Brage Hauglann Talgø","Birk Bæverfjord","Marius Fjærvik","Håkon Bredesen","Petter Blekken Melkild","Henrik Aasbø Kvande","Sander Smevoll","Trond Blekken","Martin Lundemo Aakvik","Andreas Fjærvik","Erik Kvendset Andersen","Kjetil Rønning","Ingebrigt Løfaldli","Sindre Hyldbakk Kvande","Steinar Kvammen Sæter","Anders Trønsdal Røen","Noah Aune Bævre","Andreas Lundereng Skjefte","Scott Skjølsvold-Aasen"],
+  "Sunndal": ["Neydson da Silva","Erik Iversen","Sakdarit Patkong","Christian Danielsen","Joakim Finnset Wirum","Espen Mellemseter","Eivind Lervik","Vegard Antonsen Ledal","Sander Resell Grimelid","Martin Sødahl Haugen","John Jørgen Gridseth Hafstad","Oliver Lie","Simen Svanberg Larsen","Grunde Hlydbakk Hanssen","Tor Erik Torske","Elias Romfo-Henriksen","Askil Melkild Røen","Erling Farstad Fredriksen"],
+  "Clausenengen": ["Sander Røsand Rossing","Eirik Rakstang Rundberg","Erik Pettersen","Eirik Amarp Brekke","Jan Kristian Sørli","Ole Sørli","Jesper Pettersen Storbugt","Magnus Aspehaug Kjøl","Victor Ravnum Aspen","Anders Gussiås","Teodor Stene","Tobias Stafsnes-Tømmervåg"],
+  "Dahle": ["Erik Ulseth","Bjørnar Jünge Husby","Johannes Wiig","Espen Belden Gjerde","Brian Hammeras","Marius Neergaard","Joakim Bjerkås","Henrik Rolland","Senay Isaac Habte","John Karlsen","Mats Brenden","Eirik Andersen","Tobias Dahle","Tobias Larsen Lysø","Mats Solli Lindskog","Mats Tolcsiner","Auden Ljøkjell Boksasp","Sindre Ohrstrand","Sander Bergland Henriksen","Andreas Hjelle Råket","Tom Einar Storvik","Jonas Tømmerdal Frøner"],
+  "Tomrefjord": ["Eirik Myrstrand Taklo","Sander Dahle","Tom-André Tomren","Martin Kvernmo Langset","Petter Kornelius Eik","Liam Lundbø-Slemmen","Kristian Flittie Onstad","Mats Inge Skorgenes","Erlend Søberg","Vegard Storsæter Ellingseter","Leo Ringsby","Ole-Martin Lid","Thomas Andre Brastad","Casper Rolf Hellstrøm Andreassen","Aleksander Solbakken","Ken Robin Hildre","Fynn Luca Daniel","Håvard Myrstrand Taklo"]
 };
 /* Realistisk aldersfordeling: tyngde på 21-29, noen unge, noen veteraner.
    NB: alder er generert (ikke ekte fødselsdato) – kan avvike fra virkeligheten. */
@@ -765,6 +946,8 @@ function buildSquad(team, base, names, elapsed){ // names==null => generér. ela
     let name = real ? (obj ? obj.name : entry) : genName(team,i);
     const s = hash(team+'#'+(real?name:i));
     let r = clamp(base + (s%11-5) + (pos==="ANG"?1:0) + (i===gk?2:0), 20, 99);
+    if(real && STAR_RATINGS[name]!=null) r=STAR_RATINGS[name];  // håndsatt stjernerating (f.eks. Tripić 94)
+    else if(real) r=Math.min(r, base+3, 90);                    // vanlige spillere når aldri stjernenivå
     let age = (obj && obj.age) ? obj.age : genAge(s), gen=0, isReal=real; // ekte alder når oppgitt
     for(let yr=1; yr<=elapsed; yr++){ // utvikling sesong for sesong: eldre + bedre/dårligere
       age++;
@@ -776,6 +959,15 @@ function buildSquad(team, base, names, elapsed){ // names==null => generér. ela
       }
     }
     sq.push({name, pos, rating:r, age, value:playerValue(r), real:isReal});
+  }
+  // små ekte tropper (kilder med få navn) fylles opp til 16 med genererte spillere
+  let pad=0;
+  while(real && sq.length<16){
+    const s2=hash(team+'#pad'+pad);
+    const pos = sq.filter(p=>p.pos==="MV").length<2 ? "MV" : ["FOR","MID","ANG"][pad%3];
+    const r=clamp(base+(s2%9-5),20,90);
+    sq.push({name:genName(team,100+pad), pos, rating:r, age:genAge(s2), value:playerValue(r), real:false});
+    pad++;
   }
   return sq;
 }
@@ -821,6 +1013,25 @@ function bestXI(sq){
   return [...(gk[0]?[gk[0]]:[]), ...out.slice(0,10)];
 }
 function bestXIavg(sq){ const xi=bestXI(sq); return xi.length? Math.round(xi.reduce((s,p)=>s+p.rating,0)/xi.length) : 40; }
+/* Styrketap for spiller på feil plass: 0 hvis posisjonen passer, ellers −10 (−20 hvis keeper er involvert) */
+function slotPenalty(p, role){
+  const allowed=ROLE_ALLOWED[role]||[];
+  if(allowed.includes(p.pos)) return 0;
+  if(role==="MV"||p.pos==="MV") return 20; // utespiller i mål / keeper på utebanen
+  return 10;
+}
+/* Plasser en liste spillere inn i formasjonens 11 plasser (beste passform først) */
+function placeInto(f, players){
+  const roles=FORMATIONS[f], pool=players.slice(), out=new Array(roles.length).fill(null);
+  roles.forEach((role,i)=>{ // 1) de som passer naturlig på plassen
+    const c=pool.filter(p=>(ROLE_ALLOWED[role]||[]).includes(p.pos)).sort((a,b)=>b.rating-a.rating)[0];
+    if(c){ out[i]=c.name; pool.splice(pool.indexOf(c),1); } });
+  roles.forEach((role,i)=>{ if(out[i]) return; // 2) fyll resten (helst ikke keeper på utebanen)
+    let c=pool.slice().sort((a,b)=>b.rating-a.rating);
+    if(role!=="MV"){ const of=c.filter(p=>p.pos!=="MV"); if(of.length) c=of; }
+    if(c.length){ out[i]=c[0].name; pool.splice(pool.indexOf(c[0]),1); } });
+  return out;
+}
 function squadByName(name){ return S.squad.find(p=>p.name===name); }
 /* Brukerens startellever: valgt lag (11 gyldige) ellers automatisk beste 11 */
 function isAvailable(p){ return p && !(p.outDays>0); }   // skadet/utmattet kan ikke spille
@@ -832,7 +1043,11 @@ function userXI(){
   return bestXI(avail);
 }
 function ratingOf(team, divIndex){
-  if(team===S.userTeam){ const xi=userXI(); return Math.round(xi.reduce((s,p)=>s+p.rating,0)/xi.length); }
+  if(team===S.userTeam){ const xi=userXI();
+    const roles=(S.formation&&FORMATIONS[S.formation]&&S.lineup)?FORMATIONS[S.formation]:null;
+    // spillere på feil plass (f.eks. spiss som høyreback) trekker ned lagstyrken
+    const sum=xi.reduce((s,p,i)=>s + p.rating - ((roles&&S.lineup[i]===p.name)?slotPenalty(p,roles[i]):0), 0);
+    return Math.round(sum/xi.length); }
   return bestXIavg(squadFor(team,divIndex));
 }
 
@@ -963,7 +1178,9 @@ function monthOfDay(day){ return ymd(day).m; }
 // Eliteserien starter ~15. mars (dag 74), 1. div ~5. april (95), resten ~12. april (102)
 function seasonStartDay(divIndex){ return divIndex===0?74 : divIndex===1?95 : 102; }
 function roundDay(i){ return seasonStartDay(S.divIndex) + i*7; } // én runde per uke
-function windowOpen(day){ const m=monthOfDay(day); return m===1||m===6||m===7||m===8; }
+/* Innstillinger per karriere (S.settings). gset leser med standardverdi. */
+function gset(k,def){ const s=(S&&S.settings)||{}; return s[k]==null?def:s[k]; }
+function windowOpen(day){ if(gset("alwaysWindow",false)) return true; const m=monthOfDay(day); return m===1||m===6||m===7||m===8; }
 // NM-runder spilles på faste datoer utover sesongen (3. runde ~5. juni)
 function cupRoundDay(i){ return 128 + i*14; }
 
@@ -972,7 +1189,8 @@ function cupRoundDay(i){ return 128 + i*14; }
    ===================================================================== */
 const SAVE_REG="tippeliga_saves_v9"; // register over lagrede spill
 function saveKey(id){ return "tippeliga_sv9_"+id; }
-let S=null, LIVE=null, LINEUP=null, FLASH="", TSEARCH="", TF={pos:"",maxAge:"",maxPrice:"",club:""};
+let S=null, LIVE=null, LINEUP=null, LFORM="4-4-2", FLASH="", TSEARCH="", TF={pos:"",maxAge:"",maxPrice:"",club:""};
+let CAS={game:"plinko", bet:10000, busy:false, res:null, minesN:5}; // casino-tilstand (ikke lagret)
 
 function newCareer(manager, divIndex, groupIndex, team){
   S={ manager, season:2026, divIndex, groupIndex, userTeam:team, tactic:"Balansert",
@@ -980,7 +1198,8 @@ function newCareer(manager, divIndex, groupIndex, team){
       squad: squadFor(team,divIndex).map(p=>({...p})),
       budget: BUDGET[divIndex], market: genMarket(divIndex), cup: null };
   S.cup = freshCup(); // krever at S finnes (drawCupOpponent leser S.userTeam)
-  S.lineup = bestXI(S.squad).map(p=>p.name); // startellever (kan endres i Lagledelse)
+  S.formation = "4-4-2";
+  S.lineup = placeInto(S.formation, S.squad.filter(isAvailable)); // posisjonsriktig startellever (endres i Lagledelse)
   S.day = 1; // 1. januar
   S.seasonsManaged = 0; // antall fullførte sesonger som trener
   S.autoSub = true; // automatiske bytter i kamp
@@ -1017,7 +1236,8 @@ function newCustomCareer(manager, divIndex, groupIndex, clubName, names){
       squad: buildCustomSquad(clubName, divIndex, names),
       budget: BUDGET[divIndex], market: genMarket(divIndex), cup: null };
   S.cup = freshCup();
-  S.lineup = bestXI(S.squad).map(p=>p.name);
+  S.formation = "4-4-2";
+  S.lineup = placeInto(S.formation, S.squad.filter(isAvailable));
   S.day = 1; S.seasonsManaged = 0; S.autoSub = true;
   S.listed = []; S.transfersOut = {}; S.exPlayers = []; S.scout = null;
   S.youth = genYouth(); S.academy = []; S._id = nextSaveId(); S.custom = true;
@@ -1134,7 +1354,7 @@ function nextSeason(){
   processLeagueMovements(userMove);                 // flytt alle lag (inkl. brukeren) mellom divisjonene
   const loc=findTeamLocation(S.userTeam); if(loc){ S.divIndex=loc.di; S.groupIndex=loc.gi; } // brukeren følger laget sitt
   const promoted = S.divIndex<oldDiv, relegated = S.divIndex>oldDiv;
-  const sacked = relegated && Math.random()<0.5;    // dårlig sesong -> kan få sparken
+  const sacked = relegated && Math.random()<0.5 && gset("sacking",true); // dårlig sesong -> kan få sparken (hvis på)
   S.budget = Math.max(S.budget, Math.round(BUDGET[S.divIndex]*0.5));
   S.season++; S.seasonsManaged++;
   S._lastFinish={pos, n, club:S.userTeam, promoted, relegated};
@@ -1144,9 +1364,29 @@ function nextSeason(){
 }
 function succeedManager(name){ S.manager=name||randName(); S.seasonsManaged=0; beginSeasonAtCurrentClub(); S.screen="season"; save(); render(); }
 function takeNewClub(divIndex, groupIndex, team){
+  // Spillere som ikke finnes i den regenererte troppen (egenlagde, akademi-opprykk, signerte)
+  // blir IGJEN i den gamle klubben – så du kan søke dem opp og hente dem tilbake senere.
+  if(S.userTeam && S.squad && S.squad.length){
+    const oldTeam=S.userTeam, oldDiv=S.divIndex;
+    const regen=new Set(squadFor(oldTeam,oldDiv).map(p=>p.name));
+    if(!S.exPlayers) S.exPlayers=[];
+    const stayed=[];
+    for(const p of S.squad){
+      if(regen.has(p.name)) continue;
+      let returned=false; // signert fra en annen klubb? -> han går tilbake dit
+      if(S.transfersOut) for(const k of Object.keys(S.transfersOut))
+        if(k.endsWith("|"+p.name)){ delete S.transfersOut[k]; returned=true; stayed.push(p.name); break; }
+      if(!returned && !S.exPlayers.some(x=>x.name===p.name)){
+        S.exPlayers.push({name:p.name,pos:p.pos,rating:p.rating,age:p.age,value:p.value||playerValue(p.rating),real:!!p.real,team:oldTeam,divIndex:oldDiv});
+        stayed.push(p.name);
+      }
+    }
+    if(stayed.length) pushNote(`👋 ${stayed.length} av spillerne dine ble igjen i ${oldTeam}: ${stayed.slice(0,3).join(", ")}${stayed.length>3?" m.fl.":""} – søk dem opp i Overgangsmarked for å hente dem tilbake.`);
+  }
+  _ALLP=null; // søkeindeksen må bygges på nytt (spillere kan ha flyttet tilbake)
   S.divIndex=divIndex; S.groupIndex=groupIndex; S.userTeam=team;
   S.squad=squadFor(team,divIndex).map(p=>({...p}));
-  S.budget=BUDGET[divIndex]; S.lineup=bestXI(S.squad).map(p=>p.name);
+  S.budget=BUDGET[divIndex]; S.formation="4-4-2"; S.lineup=placeInto(S.formation, S.squad.filter(isAvailable));
   S.market=genMarket(divIndex); S.cup=freshCup(); S.day=1;
   S.scout=null; S.youth=genYouth(); S.academy=[]; ensureSquadContracts(); simYouthLeagues();
   setupSeason(); S.screen="season"; save(); render();
@@ -1188,6 +1428,7 @@ function tickListings(days){
 function ensureSquadContracts(){ if(S&&S.squad) S.squad.forEach(ensureContract); }
 function renewalCost(p){ return Math.round(p.wage*30 + p.rating*p.rating*(p.age<24?6:3)); }
 function decrementContracts(){
+  if(!gset("contracts",true)) return; // kontrakter slått av i innstillingene
   const expired=[]; if(!S.exPlayers) S.exPlayers=[];
   S.squad.forEach(p=>{ ensureContract(p); p.contract--; });
   S.squad=S.squad.filter(p=>{ if(p.contract<0){
@@ -1396,6 +1637,7 @@ function playYouthMatch(label){
 /* --- ungdomskamper på kalenderen --- */
 function youthLabels(){ return [...YGROUPS.map(n=>"G"+n),"U21"].filter(l=>S.youth&&S.youth[l]); }
 function youthTodayTeams(day){
+  if(!gset("youthMatches",true)) return []; // ungdomskamper slått av
   const base=100; if(day<base || (day-base)%7!==0) return [];
   const labels=youthLabels(); if(!labels.length) return [];
   const W=(day-base)/7, n=labels.length, a=labels[W%n], b=labels[(W+Math.floor(n/2))%n];
@@ -1503,6 +1745,7 @@ function removeFromPitch(team,name){ const L=LIVE; const arr=team===L.home?L.onH
 /* ---- slitasje, besvimelse og skader (gjelder ditt lag i A-lagskamper) ---- */
 const INJURIES=["strekk i låret","forstuet ankel","kneskade","muskelstrekk i leggen","hamstring","skuldra ut av ledd","brukket tå","ankelskade","ribbeinsbrudd","lårhøne"];
 function maybeIncident(c){
+  if(!gset("injuries",true)) return; // skader/utmattelse slått av
   const L=LIVE; if(!L||!(L.userIsHome||L.userIsAway)) return;
   if(L.ctx.type==="youth"||L.ctx.type==="pmatch") return; // kun manager-mode A-lag
   const pitch=userPitch(); if(!pitch) return;
@@ -1967,6 +2210,7 @@ const $=id=>document.getElementById(id);
 const kr=n=> (n>=1e6 ? (n/1e6).toFixed(n>=1e7?0:1).replace(".",",")+" mill" : Math.round(n).toLocaleString("no-NO")) + " kr";
 function flashBar(){ if(!FLASH) return ""; const h=`<div class="flash">${esc(FLASH)}</div>`; FLASH=""; return h; }
 function lineupSummary(){ const valid=S.lineup && S.lineup.map(squadByName).filter(Boolean).length===11;
+  if(valid && S.formation && FORMATIONS[S.formation]) return S.formation;
   const c={MV:0,FOR:0,MID:0,ANG:0}; userXI().forEach(p=>c[p.pos]++);
   return `${c.FOR}-${c.MID}-${c.ANG}${valid?'':' (auto)'}`; }
 
@@ -1976,6 +2220,9 @@ function render(){
   switch(S.screen){
     case "live": renderLive(); break;
     case "browse": renderBrowse(app); break;
+    case "guide": renderGuide(app); break;
+    case "casino": renderCasino(app); break;
+    case "settings": renderSettings(app); break;
     case "seasonend": renderSeasonEnd(app); break;
     case "squad": renderSquad(app); break;
     case "lineup": renderLineup(app); break;
@@ -2037,6 +2284,7 @@ function renderSetup(app){
         <button id="startPlayer" class="btn big primary">Start spillerkarriere ▶</button>
       </div>
       <button id="browseFromSetup" class="btn link">Se alle lag og divisjoner</button>
+      <button id="guideFromSetup" class="btn link">📖 Slik spiller du – guide</button>
     </div>`;
   const divSel=$("div"), grpSel=$("grp"), teamSel=$("team");
   DIVISIONS.forEach((d,i)=>divSel.add(new Option(d.name,i)));
@@ -2075,6 +2323,7 @@ function renderSetup(app){
   document.querySelectorAll(".saveload").forEach(b=>b.onclick=()=>loadSave(+b.dataset.id));
   document.querySelectorAll(".savedel").forEach(b=>b.onclick=()=>{ if(confirm("Slette denne lagringen?")) deleteSave(+b.dataset.id); });
   $("browseFromSetup").onclick=()=>{ S={screen:"browse", _setup:true}; render(); };
+  $("guideFromSetup").onclick=()=>{ S={screen:"guide", _setup:true}; render(); };
 }
 
 /* ---------- Spillerkarriere: bli ÉN spiller (velg navn, alder 6–45, ta valg i kampene) ---------- */
@@ -2361,6 +2610,9 @@ function header(){
       <button id="goYouth" class="btn small">Ungdom</button>
       <button id="goStats" class="btn small">Statistikk</button>
       <button id="goBrowse" class="btn small">Ligaer</button>
+      <button id="goCasino" class="btn small">🎰 Casino</button>
+      <button id="goGuide" class="btn small">📖 Guide</button>
+      <button id="goSettings" class="btn small" title="Innstillinger">⚙️</button>
       <button id="quit" class="btn small">Avslutt</button>
     </div></div>`;
 }
@@ -2374,7 +2626,7 @@ function infobar(){
 function cupStatus(){ const c=S.cup; return c.won?"Vant! 🏆":(c.done?"Ute":ROUND_NAMES[c.roundIdx]); }
 function wireHeader(){
   const go=(id,scr)=>{ if($(id)) $(id).onclick=()=>{ if(scr!=="lineup") LINEUP=null; if(scr!=="youth") S.youthView=null; S._setup=false; S.screen=scr; render(); }; };
-  go("goSeason","season"); go("goSquad","squad"); go("navLineup","lineup"); go("goTransfer","transfer"); go("goScout","scout"); go("goYouth","youth"); go("goStats","stats"); go("goBrowse","browse");
+  go("goSeason","season"); go("goSquad","squad"); go("navLineup","lineup"); go("goTransfer","transfer"); go("goScout","scout"); go("goYouth","youth"); go("goStats","stats"); go("goBrowse","browse"); go("goGuide","guide"); go("goCasino","casino"); go("goSettings","settings");
   if($("quit")) $("quit").onclick=()=>{ if(confirm("Avslutte karrieren? (lagringen beholdes)")){ S=null; render(); } };
 }
 
@@ -2500,38 +2752,71 @@ function renderSquad(app){
   document.querySelectorAll(".prow[data-pn]").forEach(b=>b.onclick=()=>openPlayer(b.dataset.pn,"squad"));
 }
 
-/* ---------- Lagledelse: velg startellever ---------- */
+/* ---------- Lagledelse: formasjon, posisjoner (HB, VB, spiss …) og benk ---------- */
 function renderLineup(app){
-  if(LINEUP===null) LINEUP = (S.lineup && S.lineup.map(squadByName).filter(Boolean).length===11) ? S.lineup.slice() : bestXI(S.squad).map(p=>p.name);
-  const sel=new Set(LINEUP);
-  const c={MV:0,FOR:0,MID:0,ANG:0}; LINEUP.forEach(n=>{const p=squadByName(n); if(p)c[p.pos]++;});
-  let html=header()+infobar()+flashBar()+`<div class="card"><h3>Lagledelse – velg startellever</h3>
-    <p class="muted2">Trykk på spillere for å sette dem på laget. Velg nøyaktig 11.</p>
-    <div class="lineupcount">Valgt: <b class="${LINEUP.length===11?'ok':'no'}">${LINEUP.length}/11</b>
-      &nbsp;·&nbsp; ${c.MV} keeper, ${c.FOR} forsvar, ${c.MID} midt, ${c.ANG} angrep</div>
+  if(LINEUP===null){
+    LFORM = (S.formation && FORMATIONS[S.formation]) ? S.formation : "4-4-2";
+    const saved = S.lineup ? S.lineup.map(squadByName).filter(Boolean) : [];
+    if(saved.length===11 && S.formation && FORMATIONS[S.formation] && S.lineup.length===11) LINEUP=S.lineup.slice();
+    else if(saved.length===11) LINEUP=placeInto(LFORM, saved);           // gammel lagring uten formasjon
+    else LINEUP=placeInto(LFORM, S.squad.filter(isAvailable));
+  }
+  const roles=FORMATIONS[LFORM];
+  const chosen=new Set(LINEUP.filter(Boolean));
+  let nSel=0, sum=0, warns=0;
+  LINEUP.forEach((n,i)=>{ const p=n&&squadByName(n); if(!p) return; nSel++;
+    const pen=slotPenalty(p,roles[i]); if(pen>0) warns++; sum+=p.rating-pen; });
+  const eff=nSel?Math.round(sum/nSel):0;
+  const slotOptions=(i)=>{
+    const cur=LINEUP[i]; let o='<option value="">– velg spiller –</option>';
+    for(const pos of POSORDER){
+      const ps=S.squad.filter(p=>p.pos===pos).sort((a,b)=>b.rating-a.rating);
+      if(!ps.length) continue;
+      o+=`<optgroup label="${POSNAME[pos]}">`+ps.map(p=>{ const out=p.outDays>0;
+        return `<option value="${esc(p.name)}" ${p.name===cur?'selected':''} ${out&&p.name!==cur?'disabled':''}>${esc(p.name)}${out?' 🤕':''}${chosen.has(p.name)&&p.name!==cur?' •':''} (${p.rating})</option>`;
+      }).join("")+`</optgroup>`;
+    }
+    return o;
+  };
+  const slotRow=(i)=>{ const p=LINEUP[i]&&squadByName(LINEUP[i]); const pen=p?slotPenalty(p,roles[i]):0;
+    return `<div class="slotrow"><span class="role">${roles[i]}<i>${ROLENAME[roles[i]]}</i></span>
+      <select data-slot="${i}">${slotOptions(i)}</select>
+      ${p?`<span class="prt">${p.rating-pen}</span>`:'<span class="prt muted2">–</span>'}
+      ${pen>0?`<span class="warn">⚠ −${pen}</span>`:''}</div>`; };
+  const groups=[["🧤 Keeper","MV"],["🛡️ Forsvar","FOR"],["🎯 Midtbane","MID"],["⚡ Angrep","ANG"]];
+  const slotsHtml=groups.map(([label,g])=>{
+    const idx=roles.map((r,i)=>ROLE_GROUP[r]===g?i:-1).filter(i=>i>=0);
+    return idx.length?`<h4>${label}</h4>`+idx.map(slotRow).join(""):"";
+  }).join("");
+  const bench=S.squad.filter(p=>!chosen.has(p.name)).sort((a,b)=>POSORDER.indexOf(a.pos)-POSORDER.indexOf(b.pos)||b.rating-a.rating);
+  app.innerHTML=header()+infobar()+flashBar()+`<div class="card"><h3>Lagledelse – sett laget</h3>
+    <p class="muted2">Velg formasjon, og bestem hvor hver spiller skal spille – høyreback, spiss, osv.
+      Spillere på feil plass svekkes (⚠). De som ikke er på banen, sitter på benken.</p>
+    <div class="formpills">${Object.keys(FORMATIONS).map(f=>`<button class="tac ${f===LFORM?'on':''}" data-f="${f}">${f}</button>`).join("")}</div>
+    <div class="lineupcount">Valgt: <b class="${nSel===11?'ok':'no'}">${nSel}/11</b>
+      &nbsp;·&nbsp; Lagstyrke: <b>${eff}</b>${warns?` &nbsp;·&nbsp; <span class="warn">⚠ ${warns} utenfor posisjon</span>`:""}</div>
     <div class="lineupbtns">
       <button id="autoXI" class="btn small">Auto (beste 11)</button>
-      <button id="saveXI" class="btn small ${LINEUP.length===11?'primary':'dis'}">Bruk laget</button>
-      <button id="cancelXI" class="btn small">Avbryt</button></div>`;
-  for(const pos of POSORDER){
-    const ps=S.squad.filter(p=>p.pos===pos).sort((a,b)=>b.rating-a.rating);
-    html+=`<h4>${POSNAME[pos]}</h4><div class="plist">${ps.map(p=>{
-      const out=p.outDays>0, tag=out?` <i class="injtag">${p.outReason==="utmattelse"?'💫':'🤕'} ${Math.ceil(p.outDays/7)} uke${Math.ceil(p.outDays/7)===1?'':'r'}</i>`:'';
-      return `<button class="psel ${sel.has(p.name)?'on':''} ${out?'inj':''}" data-n="${esc(p.name)}"><span>${sel.has(p.name)?'✓ ':''}${esc(p.name)}${tag}${p.real?'':' <i class="muted2">(gen.)</i>'}</span><span class="prt">${p.rating}</span></button>`;
-    }).join("")}</div>`;
-  }
-  html+=`</div>`; app.innerHTML=html; wireHeader();
-  document.querySelectorAll(".psel").forEach(b=>b.onclick=()=>{ const n=b.dataset.n; const pl=squadByName(n);
-    if(pl&&pl.outDays>0){ FLASH=`⚠ ${n} er ${pl.outReason==="utmattelse"?'utmattet':'skadet'} og kan ikke spille (ute i ${Math.ceil(pl.outDays/7)} uke${Math.ceil(pl.outDays/7)===1?'':'r'}).`; render(); return; }
-    const i=LINEUP.indexOf(n);
-    if(i>=0) LINEUP.splice(i,1);
-    else if(LINEUP.length>=11){ FLASH="⚠ Du har allerede 11 – fjern en spiller først."; }
-    else LINEUP.push(n);
-    render(); });
-  $("autoXI").onclick=()=>{ LINEUP=bestXI(S.squad).map(p=>p.name); render(); };
+      <button id="saveXI" class="btn small ${nSel===11?'primary':'dis'}">Bruk laget</button>
+      <button id="cancelXI" class="btn small">Avbryt</button></div>
+    ${slotsHtml}
+    <h4>🪑 Benken (${bench.length})</h4>
+    <div class="benchlist">${bench.map(p=>`<span class="bench-chip">${esc(p.name)} <i>${p.pos} · ${p.rating}${p.outDays>0?' 🤕':''}</i></span>`).join("")||'<span class="muted2">Ingen – alle er på banen.</span>'}</div>
+  </div>`;
+  wireHeader();
+  document.querySelectorAll(".formpills .tac").forEach(b=>b.onclick=()=>{ LFORM=b.dataset.f;
+    LINEUP=placeInto(LFORM, LINEUP.filter(Boolean).map(squadByName).filter(Boolean)); render(); });
+  document.querySelectorAll("select[data-slot]").forEach(sel=>sel.onchange=()=>{
+    const i=+sel.dataset.slot, n=sel.value||null, prev=LINEUP[i];
+    if(n){ const j=LINEUP.indexOf(n); if(j>=0&&j!==i) LINEUP[j]=prev; } // bytt plass hvis han sto et annet sted
+    LINEUP[i]=n; render(); });
+  $("autoXI").onclick=()=>{ LINEUP=placeInto(LFORM, S.squad.filter(isAvailable)); render(); };
   $("cancelXI").onclick=()=>{ LINEUP=null; S.screen="season"; render(); };
-  $("saveXI").onclick=()=>{ if(LINEUP.length!==11){ FLASH="⚠ Du må velge nøyaktig 11 spillere."; render(); return; }
-    S.lineup=LINEUP.slice(); LINEUP=null; FLASH="✅ Startelleveren er lagret."; S.screen="season"; save(); render(); };
+  $("saveXI").onclick=()=>{ if(nSel!==11){ FLASH="⚠ Du må sette 11 spillere på laget."; render(); return; }
+    const hurt=LINEUP.find(n=>{ const p=n&&squadByName(n); return p&&p.outDays>0; });
+    if(hurt){ FLASH=`⚠ ${hurt} er skadet/utmattet og kan ikke starte – velg en annen.`; render(); return; }
+    S.lineup=LINEUP.slice(); S.formation=LFORM; LINEUP=null;
+    FLASH=`✅ Startelleveren er lagret (${LFORM}).`; S.screen="season"; save(); render(); };
 }
 
 /* ---------- Overgangsmarked ---------- */
@@ -2953,6 +3238,246 @@ function renderSeasonEnd(app){
 }
 
 /* ---------- Ligaoversikt ---------- */
+/* ---------- Klubbcasino: Plinko, kron/mynt og Mines – du vedder klubbkassa ---------- */
+const PLINKO_ROWS=12, PLINKO_MULT=[15,6,2.5,1.6,1.1,0.7,0.5,0.7,1.1,1.6,2.5,6,15];
+function minesMult(m,k){ let f=1; for(let i=0;i<k;i++) f*=(25-i)/(25-m-i); return 0.97*f; }
+function casBet(){ const el=$("casBet"); return Math.round(el?+el.value||0:CAS.bet); }
+function casCanBet(b){
+  if(b<100){ FLASH="⚠ Minste innsats er 100 kr."; render(); return false; }
+  if(b>S.budget){ FLASH="⚠ Du har ikke så mye i klubbkassa ("+kr(S.budget)+")."; render(); return false; }
+  return true;
+}
+function fmtX(m){ return (Math.round(m*100)/100+"").replace(".",","); }
+function renderCasino(app){
+  const g=CAS.game, mn=S.casMines, lockBet=CAS.busy||(mn&&!mn.over&&g==="mines");
+  let area="";
+  if(g==="plinko"){
+    let pegs=""; for(let r=0;r<PLINKO_ROWS;r++) for(let c=0;c<=r;c++)
+      pegs+=`<span class="peg" style="left:${170+(c-r/2)*24-3}px;top:${20+r*26}px"></span>`;
+    const res=CAS.res&&CAS.res.game==="plinko"?CAS.res:null;
+    area=`<div class="plinkoWrap"><div id="plinkoBoard">${pegs}<span id="plinkoBall" style="display:none">⚽</span></div>
+      <div class="plinkoSlots">${PLINKO_MULT.map((m,i)=>`<span class="pslot ${m>=6?'hi':''} ${res&&res.slot===i?'win':''}">${fmtX(m)}×</span>`).join("")}</div></div>
+      <button id="plinkoDrop" class="btn big primary" ${CAS.busy?'disabled':''}>${CAS.busy?'Ballen faller…':'Slipp ballen 🎯'}</button>
+      ${res?`<div class="casres ${res.win>=res.bet?'win':'lose'}">Ballen landet på ${fmtX(res.mult)}× – du fikk ${kr(res.win)} (innsats ${kr(res.bet)})</div>`:""}`;
+  } else if(g==="coin"){
+    const res=CAS.res&&CAS.res.game==="coin"?CAS.res:null;
+    area=`<div class="coinface" id="coinFace">${res?res.face:"🪙"}</div>
+      <div class="coinbtns"><button id="coinK" class="btn" ${CAS.busy?'disabled':''}>👑 Kron</button>
+        <button id="coinM" class="btn" ${CAS.busy?'disabled':''}>🪙 Mynt</button></div>
+      <p class="muted2" style="text-align:center">Velg side og vedd – riktig side gir 1,96× innsatsen.</p>
+      ${res?`<div class="casres ${res.win?'win':'lose'}">Det ble ${res.face==="👑"?"kron":"mynt"}! ${res.win?"Du vant "+kr(res.win):"Du tapte "+kr(res.bet)}</div>`:""}`;
+  } else { // mines
+    if(mn){
+      const openSet=new Set(mn.open), bombSet=new Set(mn.bombs), mult=minesMult(mn.m,mn.open.length);
+      area=`<div class="minesgrid">${Array.from({length:25},(_,i)=>{
+        let cls="mtile", txt="";
+        if(openSet.has(i)){ cls+=" safe"; txt="💎"; }
+        if(mn.over&&bombSet.has(i)){ cls="mtile boom"; txt=i===mn.boomIdx?"💥":"💣"; }
+        return `<button class="${cls}" data-mt="${i}" ${mn.over||openSet.has(i)?'disabled':''}>${txt}</button>`; }).join("")}</div>`;
+      if(mn.over) area+=`<div class="casres ${mn.win?'win':'lose'}">${mn.win?"💰 Du tok ut "+kr(mn.win)+" ("+fmtX(mn.winMult)+"×)!":"💥 Du traff en mine og tapte "+kr(mn.bet)+"."}</div>
+        <button id="minesNew" class="btn big primary">Ny runde</button>`;
+      else area+=`<div class="casres">💣 ${mn.m} miner · ${mn.open.length} åpnet · nå: ${fmtX(mult)}× av ${kr(mn.bet)}</div>`
+        +(mn.open.length?`<button id="minesCash" class="btn big primary">Ta ut ${kr(Math.round(mn.bet*mult))} 💰</button>`
+                        :`<p class="muted2" style="text-align:center">Trykk på rutene og finn 💎 – men unngå minene!</p>`);
+    } else {
+      area=`<div class="formpills" style="justify-content:center">${[2,5,10].map(n=>`<button class="tac ${CAS.minesN===n?'on':''}" data-mn="${n}">${n} miner</button>`).join("")}</div>
+        <p class="muted2" style="text-align:center">Flere miner = høyere gevinst per rute. Ta ut når du vil – treffer du en mine, taper du alt.</p>
+        <button id="minesStart" class="btn big primary">Start Mines 💣</button>`;
+    }
+  }
+  app.innerHTML=header()+infobar()+flashBar()+`<div class="card casino">
+    <h3>🎰 Klubbcasino</h3>
+    <p class="muted2">Du vedder med klubbkassa (<b>${kr(S.budget)}</b>). Vinn stort – eller forklar tapet for styret…</p>
+    <div class="formpills">${[["plinko","🎯 Plinko"],["coin","🪙 Kron eller mynt"],["mines","💣 Mines"]].map(([k,l])=>`<button class="tac ${g===k?'on':''}" data-cg="${k}">${l}</button>`).join("")}</div>
+    <div class="betrow">Innsats: <input id="casBet" type="number" min="100" step="100" value="${CAS.bet}" ${lockBet?'disabled':''}/>
+      <button class="btn small" data-bx="0.5" ${lockBet?'disabled':''}>½</button>
+      <button class="btn small" data-bx="2" ${lockBet?'disabled':''}>2×</button>
+      <button id="betMax" class="btn small" ${lockBet?'disabled':''}>Alt 😱</button></div>
+    ${area}
+  </div>`;
+  wireHeader();
+  document.querySelectorAll("[data-cg]").forEach(b=>b.onclick=()=>{ if(CAS.busy) return; CAS.game=b.dataset.cg; CAS.res=null; render(); });
+  const bi=$("casBet");
+  if(bi) bi.onchange=()=>{ CAS.bet=Math.max(100,Math.round(+bi.value||100)); };
+  document.querySelectorAll("[data-bx]").forEach(b=>b.onclick=()=>{ CAS.bet=clamp(Math.round(casBet()*+b.dataset.bx),100,Math.max(100,S.budget)); render(); });
+  if($("betMax")) $("betMax").onclick=()=>{ CAS.bet=Math.max(100,S.budget); render(); };
+  if($("plinkoDrop")) $("plinkoDrop").onclick=()=>{
+    if(CAS.busy) return; const b=casBet(); if(!casCanBet(b)) return;
+    CAS.bet=b; S.budget-=b; save(); CAS.busy=true; CAS.res=null; render(); animatePlinko(b); };
+  if($("coinK")) $("coinK").onclick=()=>flipCoin("K");
+  if($("coinM")) $("coinM").onclick=()=>flipCoin("M");
+  if($("minesStart")) $("minesStart").onclick=()=>{
+    const b=casBet(); if(!casCanBet(b)) return;
+    CAS.bet=b; S.budget-=b;
+    const idx=Array.from({length:25},(_,i)=>i);
+    for(let i=idx.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [idx[i],idx[j]]=[idx[j],idx[i]]; }
+    S.casMines={bombs:idx.slice(0,CAS.minesN), open:[], bet:b, m:CAS.minesN, over:false, boomIdx:null, win:0, winMult:0};
+    save(); render(); };
+  document.querySelectorAll("[data-mn]").forEach(b=>b.onclick=()=>{ CAS.minesN=+b.dataset.mn; render(); });
+  document.querySelectorAll("[data-mt]").forEach(b=>b.onclick=()=>minesPick(+b.dataset.mt));
+  if($("minesCash")) $("minesCash").onclick=minesCash;
+  if($("minesNew")) $("minesNew").onclick=()=>{ S.casMines=null; save(); render(); };
+}
+function animatePlinko(bet){
+  const ball=$("plinkoBall");
+  let k=0, r=-1;
+  if(ball){ ball.style.display="block"; ball.style.left="162px"; ball.style.top="0px"; }
+  const iv=setInterval(()=>{
+    r++;
+    if(r>=PLINKO_ROWS){ clearInterval(iv);
+      const mult=PLINKO_MULT[k], win=Math.round(bet*mult);
+      S.budget+=win; CAS.busy=false; CAS.res={game:"plinko",mult,win,bet,slot:k};
+      save(); if(S&&S.screen==="casino") render();
+      return; }
+    if(Math.random()<0.5) k++;
+    const el=$("plinkoBall");
+    if(el){ el.style.left=(170+(k-(r+1)/2)*24-8)+"px"; el.style.top=(20+r*26)+"px"; }
+  },130);
+}
+function flipCoin(choice){
+  if(CAS.busy) return; const bet=casBet(); if(!casCanBet(bet)) return;
+  CAS.bet=bet; S.budget-=bet; save(); CAS.busy=true; CAS.res=null; render();
+  let t=0;
+  const iv=setInterval(()=>{
+    t++; const el=$("coinFace"); if(el) el.textContent=t%2?"👑":"🪙";
+    if(t>=12){ clearInterval(iv);
+      const resK=Math.random()<0.5, win=(resK?"K":"M")===choice?Math.round(bet*1.96):0;
+      S.budget+=win; CAS.busy=false; CAS.res={game:"coin",face:resK?"👑":"🪙",win,bet};
+      save(); if(S&&S.screen==="casino") render(); }
+  },100);
+}
+function minesPick(i){
+  const mn=S.casMines; if(!mn||mn.over||mn.open.includes(i)) return;
+  if(mn.bombs.includes(i)){ mn.over=true; mn.boomIdx=i; mn.win=0; save(); render(); return; }
+  mn.open.push(i);
+  if(mn.open.length===25-mn.m){ mn.winMult=minesMult(mn.m,mn.open.length); mn.win=Math.round(mn.bet*mn.winMult); S.budget+=mn.win; mn.over=true; } // tømte brettet!
+  save(); render();
+}
+function minesCash(){
+  const mn=S.casMines; if(!mn||mn.over||!mn.open.length) return;
+  mn.winMult=minesMult(mn.m,mn.open.length); mn.win=Math.round(mn.bet*mn.winMult);
+  S.budget+=mn.win; mn.over=true; save(); render();
+}
+
+/* ---------- Innstillinger: brytere per karriere + juksekoder ---------- */
+function setSet(k,v){ S.settings=S.settings||{}; S.settings[k]=v; save(); render(); }
+function renderSettings(app){
+  const row=(k,def,tittel,beskr)=>{ const on=gset(k,def);
+    return `<div class="setrow"><div class="setinfo"><b>${tittel}</b><span>${beskr}</span></div>
+      <button class="btn small ${on?'primary':''}" data-set="${k}" data-def="${def?1:0}">${on?'PÅ':'AV'}</button></div>`; };
+  app.innerHTML=header()+infobar()+flashBar()+`<div class="card">
+    <h3>⚙️ Innstillinger</h3>
+    <p class="muted2">Gjelder denne karrieren og lagres automatisk. Du kan endre når som helst.</p>
+    ${row("contracts",true,"Kontrakter","PÅ = kontrakter går ut og må fornyes. AV = du slipper å tenke på kontrakter – ingen forsvinner.")}
+    ${row("youthMatches",true,"Ungdomskamper","PÅ = ungdomslagene spiller kamper på kalenderen. AV = ingen ungdomskamper eller varsler (du kan fortsatt se troppene).")}
+    ${row("injuries",true,"Skader og utmattelse","PÅ = spillere kan bli skadet eller kollapse i kamp. AV = skadefritt lag.")}
+    ${row("alwaysWindow",false,"Overgangsvindu alltid åpent","PÅ = kjøp og selg spillere hele året. AV = kun januar, juni, juli og august.")}
+    ${row("sacking",true,"Sparken","PÅ = du kan få sparken etter nedrykk. AV = trygg i jobben uansett resultat.")}
+    ${row("cheats",false,"Juksekoder","PÅ = viser jukse-knappene under: sett penger, helbred alle og superlag.")}
+    ${gset("cheats",false)?`<h4>💰 Juksekoder</h4>
+      <div class="createform">
+        <input id="chAmt" type="number" placeholder="Beløp (kr)" style="flex:1;min-width:130px"/>
+        <button id="chMoney" class="btn small primary">Sett penger</button>
+        <button id="chHeal" class="btn small">❤️ Helbred alle</button>
+        <button id="chBoost" class="btn small">💪 Superlag +5</button>
+      </div>`:""}
+  </div>`;
+  wireHeader();
+  document.querySelectorAll("[data-set]").forEach(b=>b.onclick=()=>{ const def=b.dataset.def==="1"; setSet(b.dataset.set, !gset(b.dataset.set,def)); });
+  if($("chMoney")) $("chMoney").onclick=()=>{ const v=Math.max(0,Math.round(+$("chAmt").value||0)); S.budget=v; FLASH="💰 Juksekode: penger satt til "+kr(v)+"."; save(); render(); };
+  if($("chHeal")) $("chHeal").onclick=()=>{ S.squad.forEach(p=>{ p.outDays=0; p.outReason=null; if(p.fit!=null) p.fit=100; }); FLASH="❤️ Juksekode: alle spillere er friske og uthvilte."; save(); render(); };
+  if($("chBoost")) $("chBoost").onclick=()=>{ S.squad.forEach(p=>{ p.rating=clamp(p.rating+5,20,99); p.value=playerValue(p.rating); }); FLASH="💪 Juksekode: hele troppen fikk +5 i styrke!"; save(); render(); };
+}
+
+/* ---------- Guide / Slik spiller du ---------- */
+function renderGuide(app){
+  const back=S._setup?"setup":"season";
+  app.innerHTML=`
+  <div class="topbar"><div><span class="club">📖 Guide</span><span class="meta">Slik spiller du Norsk Tippeliga</span></div><div class="actions"><button id="back" class="btn small">Tilbake</button></div></div>
+  <div class="guide">
+  <div class="card"><h3>⚽ Kom i gang</h3>
+    <ul>
+      <li>Skriv manager-navn, velg divisjon → avdeling → lag (eller bruk søkefeltet) – fra Eliteserien ned til 7. divisjon.</li>
+      <li>Du kan også lage din <b>egen klubb</b> med egne spillere, eller starte en <b>spillerkarriere</b> som én enkelt spiller.</li>
+      <li>Velg taktikk og trykk <b>Spill kamp (live)</b> – kampen spilles minutt for minutt (1 minutt = 1 sekund). 5× hastighet og «Hopp til slutt» finnes.</li>
+      <li>Topp i tabellen = opprykk, bunn = nedrykk. Karrieren lagres automatisk i nettleseren, og du kan ha <b>flere lagringer</b> samtidig.</li>
+    </ul></div>
+  <div class="card"><h3>📅 Kalender og sesong</h3>
+    <ul>
+      <li>Sesongen starter <b>1. januar</b>. Eliteserien sparkes i gang ~15. mars, lavere divisjoner i april.</li>
+      <li>Trykk <b>«Neste dag»</b> eller <b>«Hopp til neste kamp»</b> for å bevege deg gjennom året – det er ikke kamp hele tiden.</li>
+      <li><b>Overgangsvindu:</b> du kan kun signere spillere i <b>januar, juni, juli og august</b>. Utenom vinduet er markedet stengt.</li>
+      <li><b>NM-cupen</b> spilles på faste datoer (1. runde 8. mai … finale 31. juli) mot lag fra hele pyramiden – uavgjort gir straffekonkurranse.</li>
+      <li><b>Budsjett</b> varierer med divisjon – du tjener mer jo høyere du spiller.</li>
+    </ul></div>
+  <div class="card"><h3>🎮 Kamper</h3>
+    <ul>
+      <li>Live-kamp med målscorere, assist og kort i en levende kampfeed – pluss straffe, VAR, nesten-mål, røde kort og rødt ved to gule.</li>
+      <li><b>Bytter:</b> under kampen kan du bytte inn spillere fra benken, eller slå på <b>auto-bytte</b> så spillet bytter selv (rundt 64' og 74').</li>
+      <li><b>Kamprating (keeper → spiss):</b> ditt lag til høyre, motstanderen til venstre. Alle starter på 6,0 og endres live: mål +1,0 · assist +0,7 · nestenmål +0,1 · gult −0,5 · rødt −1,5, og keeperen trekkes per baklengsmål. Etter kampen justeres alt etter resultatet – clean sheet løfter keeper/forsvar ekstra.</li>
+      <li><b>Straffekonkurranse i NM:</b> blir det uavgjort, velger du selv hvem som tar hver straffe (best av 5, så sudden death).</li>
+    </ul></div>
+  <div class="card"><h3>👥 Tropp og lagledelse</h3>
+    <ul>
+      <li>Hvert lag har en spillerstall med posisjon, alder og styrke. ★ = på laget. Maks 32 spillere, minst 14.</li>
+      <li><b>Lagledelse:</b> velg formasjon (4-4-2, 4-3-3, 4-5-1, 3-5-2, 5-3-2) og bestem hvor hver spiller skal spille – høyreback, venstreback, spiss osv. Spillere på feil plass svekkes (⚠ −10, keeper-bytter −20), og de som ikke er på banen sitter på benken. Det påvirker lagstyrke og hvem som scorer.</li>
+      <li><b>Lag egne spillere</b> under Tropp: velg alder fra 14 år. En 14-åring starter på 15 i styrke, +5 per år opp til 18 (= 35).</li>
+      <li><b>Spillerdetalj:</b> trykk på en spiller for fødselsår, kontraktslengde og ukelønn. Kontrakter går ut og må fornyes (pris etter rating og alder). Du kan også <b>chatte</b> med spilleren.</li>
+      <li>Eliteserien og OBOS-ligaen (alle 32 lag) har <b>ekte spillere</b> med ekte posisjon og alder. Mange lag i 2.–5. divisjon har også ekte spillernavn – resten får genererte norske navn.</li>
+      <li><b>Stjerneratinger:</b> ligaens beste spillere har håndsatte, realistiske ratinger – Zlatko Tripić (Viking) er best i Eliteserien med <b>94</b>, foran Patrick Berg (93) og Jens Petter Hauge (92). Vanlige spillere går aldri over 90.</li>
+    </ul></div>
+  <div class="card"><h3>💰 Overgangsmarked</h3>
+    <ul>
+      <li>Søk i <b>alle</b> klubber i hele Norge og by på hvem som helst. Selgende klubb sier ja eller nei – høyt bud gir større sjanse, men spillere i bedre divisjoner krever kraftig overbud.</li>
+      <li>Legger du en egen spiller ut for salg, kommer det bud fra andre lag som du kan godta eller avslå.</li>
+      <li><b>Filtre:</b> posisjon, maks alder, maks pris og klubb.</li>
+      <li><b>Bytter du klubb</b> (f.eks. sparken): egenlagde og signerte spillere blir igjen i den gamle klubben – søk dem opp og kjøp dem tilbake. Du får varsel om hvem som ble igjen.</li>
+    </ul></div>
+  <div class="card"><h3>🧒 Speider og ungdomsakademi</h3>
+    <ul>
+      <li><b>Speider:</b> send ut en speider i 3, 6 eller 9 måneder (pris etter klubben din). Han finner talenter (10–17 år) til akademi-poolen – derfra setter du dem selv på ungdomslagene.</li>
+      <li><b>Akademiet</b> har lag fra G6 til U21. Du kan opprette ekstra lag (f.eks. «G12 2»), lage egne spillere og flytte spillere mellom lag – eller ta dem opp til A-laget (fra 14 år).</li>
+      <li>Lagene fra G13 til U21 spiller i <b>ungdomsligaer med tabell</b>, mot lokale lag fra samme område. Kamplengde etter alder: under 13 = 30 min, 13–16 = 75 min, 17–21 = 90 min.</li>
+      <li>På faste dager er det <b>ungdomskamp</b> (du får varsel) – se kampen live minutt for minutt, eller spill treningskamp når som helst. Spillerne rykker opp et trinn hver sesong, og det kommer 1–3 nye spillere per år.</li>
+    </ul></div>
+  <div class="card"><h3>📊 Statistikk</h3>
+    <ul>
+      <li>Toppscorere, flest assist, gule/røde kort og keepernes redninger.</li>
+      <li>Øverst ser du toppscorerne på <b>dine egne lag</b> (A-laget og hvert ungdomslag), og du kan velge aldersgruppe (G6–U21).</li>
+      <li>Velg <b>hvilken som helst liga</b> (divisjon + avdeling) og se sesongstatistikken der – din egen serie viser faktiske kamper, øvrige simuleres.</li>
+    </ul></div>
+  <div class="card"><h3>📈 Karriere og utvikling</h3>
+    <ul>
+      <li><b>Spillerutvikling:</b> etter hver sesong går spillere litt opp/ned – unge stiger, eldre synker, og gode prestasjoner gir løft. Hele ligaen utvikler seg, ikke bare ditt lag.</li>
+      <li><b>Aldring og pensjon:</b> spillerne blir ett år eldre hver sesong og legger opp når de er 33–43. Akademiet henter inn ny ungdom hvert år.</li>
+      <li><b>Sparken:</b> gjør du det dårlig og rykker ned, kan du få sparken og må finne ny klubb.</li>
+      <li><b>Trenerkarriere:</b> etter 25 sesonger legger du opp, og kan fortsette med din sønn/datter (du velger navnet) eller en tilfeldig person.</li>
+    </ul></div>
+  <div class="card"><h3>⚙️ Innstillinger</h3>
+    <ul>
+      <li>Trykk på <b>⚙️</b> i toppmenyen for å skru av/på: <b>kontrakter</b> (slipp å fornye), <b>ungdomskamper</b>, <b>skader</b>, <b>overgangsvindu alltid åpent</b> og <b>sparken</b>.</li>
+      <li>Slår du på <b>juksekoder</b>, får du knapper for å sette penger, helbrede alle spillere og gi hele troppen +5 i styrke. Innstillingene lagres per karriere.</li>
+    </ul></div>
+  <div class="card"><h3>🎰 Klubbcasino</h3>
+    <ul>
+      <li>Under <b>Casino</b> i toppmenyen kan du vedde klubbkassa på tre spill: <b>Plinko</b> (slipp ballen og se hvor den lander – kantene gir 15×!), <b>Kron eller mynt</b> (riktig side gir 1,96×) og <b>Mines</b> (finn 💎, unngå minene, og ta ut gevinsten før det smeller).</li>
+      <li>Alt du vinner og taper går rett inn og ut av budsjettet – vedd forsiktig, styret følger med…</li>
+    </ul></div>
+  <div class="card"><h3>💬 Chat med spillerne (AI)</h3>
+    <ul>
+      <li>Trykk på en spiller (A-lag eller ungdom) og skriv en melding – spilleren svarer i karakter.</li>
+      <li>Med AI slått på svarer en ekte Claude-modell på det du skriver. Uten oppsett brukes enkle innebygde svar – spillet fungerer helt fint uansett.</li>
+      <li><b>Slå på AI:</b> legg Anthropic-nøkkelen din i fila <code>apikey.txt</code> i spillmappa og start serveren med <code>node server.js</code> – står det «AI-chat PÅ ✅» i konsollen, er den klar. Se README for detaljer.</li>
+    </ul></div>
+  <div class="card"><h3>🗺️ Lagdata (2026-sesongen)</h3>
+    <ul>
+      <li>Eliteserien, 1., 2. og 3. divisjon bruker de <b>ekte 2026-oppsettene</b>. 5. divisjon avd 2 er Pol Tastas ekte Rogaland-gruppe.</li>
+      <li>Øvrige avdelinger i 4.–7. divisjon fylles med ekte norske klubber, men med omtrentlig avdelingsinndeling – lett å rette i <code>game.js</code> (<code>DIVISIONS</code>-listen, ekte tropper i <code>REAL_SQUADS</code>).</li>
+    </ul></div>
+  </div>`;
+  $("back").onclick=()=>{ if(back==="setup"){ S=null; render(); } else { S.screen= S.round>=S.fixtures.length?"seasonend":"season"; render(); } };
+}
+
 function renderBrowse(app){
   const back=S._setup?"setup":"season";
   let html=`<div class="topbar"><div><span class="club">Ligaoversikt</span><span class="meta">Alle divisjoner og lag · sesong ${S&&S.season?S.season:2026}</span></div><div class="actions"><button id="back" class="btn small">Tilbake</button></div></div>`;

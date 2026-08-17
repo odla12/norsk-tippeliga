@@ -13,6 +13,9 @@ deg gjennom sesongene med opp- og nedrykk.
 4. Topp i tabellen = opprykk, bunn = nedrykk. Karrieren lagres automatisk i nettleseren.
 
 ## Funksjoner
+- **📖 Guide i appen** – hele denne spillguiden finnes inne i spillet: trykk
+  **«📖 Slik spiller du – guide»** på startskjermen, eller **«📖 Guide»**-knappen
+  i toppmenyen når du er i gang med en karriere.
 - **Kalender** – sesongen starter **1. januar**. Eliteserien sparkes i gang ~15. mars,
   lavere divisjoner i april. Du trykker **«Neste dag»** eller **«Hopp til neste kamp»**
   for å bevege deg gjennom året – det er ikke kamp hele tiden.
@@ -30,15 +33,25 @@ deg gjennom sesongene med opp- og nedrykk.
     (Havørn, Sola 2 og Staal Jørpeland 2 har genererte navn – uklare/reservelag-sider.)
   - **Eliteserien + OBOS-ligaen (alle 32 lag)** har nå EKTE posisjon og alder per spiller
     (hentet fra Transfermarkt, 2026-sesongen) – ikke bare navn. Styrke settes fortsatt automatisk.
+  - **Stjerneratinger** – Eliteseriens beste spillere har håndsatte, realistiske ratinger
+    (`STAR_RATINGS` i `game.js`): Zlatko Tripić er ligaens beste med **94**, foran Patrick
+    Berg (93) og Jens Petter Hauge (92). Øvrige genererte ratinger går aldri over 90, så
+    stjernene er alltid på topp. Lett å legge til flere navn i tabellen.
   - For lavere divisjoner er spillernavnene ekte, men posisjon/alder settes automatisk (kildene
     publiserer ikke posisjon/alder for disse nivåene).
+  - **Hele 2. og 3. divisjon** (alle avdelinger) og **62 av 72 klubber i 4. divisjon** har
+    ekte tropper (Transfermarkt/FotMob/fotball.no) – totalt **215 klubber med ekte spillere**.
+    Se `FOTMOB_PROGRESS.md` for hvilke få klubber som mangler kilde.
   - Øvrige lag i landet har genererte norske spillernavn. Legg til flere ekte tropper
     i `REAL_SQUADS` øverst i `game.js`.
 - **Overgangsmarked med bud** – søk i ALLE klubber og by på hvem som helst. Selgende
   klubb sier ja eller nei (høyt bud = større sjanse), men spillere i en bedre divisjon
   sier som regel nei med mindre du overbyr kraftig. Legger du en egen spiller ut for
   salg, kommer det bud fra andre lag som du kan godta eller avslå. Maks 32, minst 14.
-- **Lagledelse** – velg nøyaktig hvilke 11 som starter. Påvirker lagstyrke og scorere.
+- **Lagledelse** – velg formasjon (4-4-2, 4-3-3, 4-5-1, 3-5-2, 5-3-2) og bestem hvor
+  hver spiller skal spille: høyreback, midtstopper, venstreback, spiss osv. Spillere på
+  feil plass svekkes (−10, keeper-bytter −20), og de som ikke er på banen sitter på
+  benken. Påvirker lagstyrke og scorere.
 - **Bytter i kamp** – under live-kampen kan du bytte inn spillere fra benken, eller slå
   på **auto-bytte** så spillet bytter selv (rundt 64' og 74').
 - **Kamprating (keeper → spiss)** – begge lag får rating på hver sin side av kampfeeden:
@@ -113,7 +126,14 @@ faller bare tilbake til enkle innebygde svar.
 - **Trenerkarriere** – etter 25 sesonger legger du opp som trener, og kan fortsette
   med din sønn/datter (du velger navnet) eller en tilfeldig person.
 - **Sparken** – gjør du det dårlig og rykker ned, kan du få sparken og må finne ny klubb.
+  Egenlagde og signerte spillere blir igjen i den gamle klubben – søk dem opp i
+  overgangsmarkedet for å hente dem tilbake (du får varsel om hvem som ble igjen).
 - **Budsjett** – varierer med divisjon; du tjener mer jo høyere du spiller.
+- **⚙️ Innstillinger** – skru av/på kontrakter (slipp å fornye), ungdomskamper, skader,
+  overgangsvindu alltid åpent og sparken – per karriere. Egen **juksekode-modus** med
+  sett penger, helbred alle og superlag (+5 styrke).
+- **🎰 Klubbcasino** – vedd klubbkassa på **Plinko**, **kron eller mynt** og **Mines**
+  (finn 💎, unngå minene, ta ut før det smeller). Gevinst og tap går rett i budsjettet.
 
 ## Lagdata (2026-sesongen)
 - **Eliteserien, 1., 2. og 3. divisjon** bruker de EKTE 2026-oppsettene (hentet fra

@@ -191,6 +191,18 @@
   .psel{display:flex;justify-content:space-between;gap:8px;align-items:center;background:var(--panel2);
        border:1px solid var(--line);border-radius:7px;padding:7px 10px;color:var(--txt);cursor:pointer;font-size:13px;text-align:left}
   .psel.on{border-color:var(--accent);background:rgba(255,122,24,.16)}
+  /* ---- lagledelse: formasjon + posisjoner ---- */
+  .formpills{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}
+  .slotrow{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto auto;gap:8px;align-items:center;
+       background:var(--panel2);border-radius:7px;padding:6px 10px;margin:4px 0;font-size:13px}
+  .slotrow .role{color:var(--accent2);font-weight:800;font-size:13px}
+  .slotrow .role i{display:block;font-style:normal;font-weight:400;font-size:10px;color:var(--muted)}
+  .slotrow select{width:100%;min-width:0;padding:7px 9px;background:var(--panel);border:1px solid var(--line);
+       border-radius:7px;color:var(--txt);font-size:13px}
+  .slotrow .warn,.lineupcount .warn{color:#ffc24a;font-size:12px;white-space:nowrap}
+  .benchlist{display:flex;flex-wrap:wrap;gap:5px}
+  .bench-chip{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:12px}
+  .bench-chip i{color:var(--muted);font-style:normal;font-size:11px}
   /* ---- form / skade / utmattelse ---- */
   .injtag{font-style:normal;font-size:10px;font-weight:700;color:#ff7a6e;background:rgba(255,80,70,.14);border-radius:5px;padding:1px 5px;white-space:nowrap}
   .tiredtag{font-style:normal;font-size:10px;font-weight:700;color:#ffc24a;background:rgba(255,180,40,.13);border-radius:5px;padding:1px 5px;white-space:nowrap}
@@ -230,7 +242,7 @@
   .penpick{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
   .pentaker{display:inline-flex;gap:6px;align-items:center}
   /* ---- spillerdetalj / ungdom / filtre ---- */
-  .prow{width:100%;border:none;cursor:pointer;font-family:inherit}
+  .prow{width:100%;border:none;cursor:pointer;font-family:inherit;color:var(--txt);text-align:left}
   .prow:hover{outline:1px solid var(--accent)}
   .pdgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:6px}
   .pdgrid>span:nth-child(odd){color:var(--muted)}
@@ -245,6 +257,39 @@
   .cmsg.me{align-self:flex-end;background:var(--accent);color:#1a1205;border-bottom-right-radius:3px}
   .cmsg.them{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:3px}
   .cmsg.typing{opacity:.6;font-style:italic}
+  /* ---- guide ---- */
+  .guide{display:flex;flex-direction:column;gap:16px}
+  .guide ul{margin:4px 0 2px;padding-left:20px}
+  .guide li{margin:5px 0;line-height:1.5}
+  .guide li b{color:var(--accent2)}
+  .guide code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px}
+  /* ---- innstillinger ---- */
+  .setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:11px 4px;border-bottom:1px solid var(--line)}
+  .setrow:last-of-type{border-bottom:none}
+  .setrow .setinfo b{display:block;margin-bottom:2px}
+  .setrow .setinfo span{color:var(--muted);font-size:12px;line-height:1.4}
+  .setrow .btn{flex:0 0 auto;min-width:52px}
+  /* ---- casino ---- */
+  .betrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0 12px;font-size:14px}
+  .betrow input{width:130px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px}
+  .plinkoWrap{position:relative;margin:6px auto;width:340px;max-width:100%}
+  #plinkoBoard{position:relative;height:338px}
+  .peg{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.65}
+  #plinkoBall{position:absolute;font-size:16px;transition:left .12s linear,top .12s linear;z-index:2}
+  .plinkoSlots{display:flex;gap:2px;margin-top:4px}
+  .pslot{flex:1;text-align:center;font-size:10px;font-weight:700;padding:5px 0;border-radius:5px;background:var(--panel2)}
+  .pslot.hi{background:rgba(255,122,24,.35)}
+  .pslot.win{background:var(--green);color:#04150d}
+  .coinface{font-size:64px;text-align:center;margin:14px 0}
+  .coinbtns{display:flex;gap:8px;justify-content:center}
+  .minesgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;max-width:340px;margin:10px auto}
+  .mtile{aspect-ratio:1;font-size:18px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;color:var(--txt)}
+  .mtile:hover:not([disabled]){border-color:var(--accent)}
+  .mtile.safe{background:rgba(25,169,116,.25)}
+  .mtile.boom{background:rgba(224,82,74,.4)}
+  .mtile[disabled]{cursor:default}
+  .casres{text-align:center;font-size:15px;font-weight:700;margin:10px 0}
+  .casres.win{color:var(--green)} .casres.lose{color:var(--red)}
   /* ---- lagrede spill ---- */
   .saveslist{display:flex;flex-direction:column;gap:6px;margin:6px 0}
   .saverow{display:flex;gap:6px;align-items:stretch}
