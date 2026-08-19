@@ -1,4 +1,4 @@
-const GAME_VERSION="0.0.2"; // bumpes ved hver utgivelse (vises i nettleserfanen)
+const GAME_VERSION="0.0.3"; // bumpes ved hver utgivelse (vises i nettleserfanen)
 /* =====================================================================
    NORSK TIPPELIGA  -  fotball-manager  (2026-sesongen)
    ---------------------------------------------------------------------
@@ -163,7 +163,7 @@ const ROLE_ALLOWED={MV:["MV"],HB:["FOR"],VB:["FOR"],MS:["FOR"],HVB:["FOR","MID"]
   HM:["MID"],VM:["MID"],SM:["MID"],HV:["MID","ANG"],VV:["MID","ANG"],SP:["ANG"]};
 const ROLE_GROUP={MV:"MV",HB:"FOR",VB:"FOR",MS:"FOR",HVB:"FOR",VVB:"FOR",HM:"MID",VM:"MID",SM:"MID",HV:"ANG",VV:"ANG",SP:"ANG"};
 
-function playerValue(r){ return Math.round(Math.max(1,(r-25))**3 * 8); }
+function playerValue(r){ return Math.round(Math.max(1,(r-25))**3 * 160); } // realistiske priser: 90-spiller ≈ 44 mill, stjerner 50+ mill
 function genName(team,i){ const s=hash(team+'#'+i); return FIRST[s%FIRST.length]+' '+LAST[(s>>>9)%LAST.length]; }
 function randName(){ return FIRST[(Math.random()*FIRST.length)|0]+' '+LAST[(Math.random()*LAST.length)|0]; }
 function randNameSeeded(s){ return FIRST[s%FIRST.length]+' '+LAST[(s>>>9)%LAST.length]; }
@@ -1290,7 +1290,14 @@ function save(){ if(!S||!S._id) return; try{
     const i=reg.findIndex(r=>r.id===S._id); if(i>=0) reg[i]=meta; else reg.push(meta);
     writeReg(reg);
   }catch(e){} }
-function loadSave(id){ try{ const d=localStorage.getItem(saveKey(id)); if(!d) return; S=JSON.parse(d); if(S.screen==="live") S.screen="season"; render(); }catch(e){} }
+function loadSave(id){ try{ const d=localStorage.getItem(saveKey(id)); if(!d) return; S=JSON.parse(d); if(S.screen==="live") S.screen="season";
+  // gamle lagringer: regn om spillerverdier til dagens prisnivå
+  const oppdater=p=>{ if(p&&p.rating!=null) p.value=playerValue(p.rating); };
+  if(S.squad) S.squad.forEach(oppdater);
+  if(S.exPlayers) S.exPlayers.forEach(oppdater);
+  if(S.market) S.market.forEach(oppdater);
+  if(S.listed) S.listed.forEach(l=>{ const p=S.squad&&S.squad.find(x=>x.name===l.name); if(p) l.value=p.value; });
+  render(); }catch(e){} }
 function deleteSave(id){ try{ localStorage.removeItem(saveKey(id)); writeReg(listSaves().filter(r=>r.id!==id)); }catch(e){} render(); }
 
 /* ---------- Liga: start runde (brukerkamp live, resten instant) ---------- */
