@@ -1,3 +1,4 @@
+const GAME_VERSION="0.0.1"; // bumpes ved hver utgivelse (vises nede i venstre hjørne)
 /* =====================================================================
    NORSK TIPPELIGA  -  fotball-manager  (2026-sesongen)
    ---------------------------------------------------------------------
@@ -3578,4 +3579,5 @@ function wireCheat(){
   if(set) set.onclick=apply;
   if(amt) amt.addEventListener("keydown", e=>{ if(e.key==="Enter") apply(); });
 }
-if(typeof document!=="undefined") document.addEventListener("DOMContentLoaded", ()=>{ render(); wireCheat(); });
+if(typeof document!=="undefined") document.addEventListener("DOMContentLoaded", ()=>{ render(); wireCheat();
+  const v=document.getElementById("ver"); if(v) v.textContent="versjon "+GAME_VERSION; });
