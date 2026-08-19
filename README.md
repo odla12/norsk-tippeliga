@@ -27,12 +27,6 @@ deg gjennom sesongene med opp- og nedrykk.
   De starter på **30 i styrke**, og du velger alder fra **14 år** og oppover.
 - **Live kampsimulering** – 1 minutt = 1 sekund, med hendelser («⚽ 55' Ullrik
   Gullihansen», «🟨 Ole Pålsen») i en levende kampfeed.
-- **📺 Kampvisning** – se kampen på en 2D-bane rett ovenfra (klassisk
-  manager-stil): spillerne er runde brikker med draktnummer i lagfargene og står
-  i formasjonen din, ballen spilles rundt med pasninger og brudd, mål og sjanser
-  utspiller seg mot målet med «MÅL!»-banner og blink, kort vises på spilleren,
-  og straffer/VAR stopper spillet. Velg **📺 Se kampen** eller **📃 Kun tekst**
-  på kampdagen – bildet går i samme fart som du velger (1×/5×/10×).
 - **Tropp** – hvert lag har en spillerstall (posisjon, alder, styrke). ★ = på laget.
   - **Ekte spillere** for alle 16 **Eliteserien**-lag og alle 16 **OBOS-ligaen**-lag
     (hentet fra Wikipedia).
