@@ -2123,9 +2123,9 @@ function pitchEvent(kind, data){
   const pv=L.pv;
   if(kind==='yellow'||kind==='red'){
     const st=pv.players[data.team+"|"+data.name];
-    if(st){ st.card=(kind==='red')?2:1; st.cardT=1.8; }
-    pv.banner=(kind==='red'?'🟥 RØDT KORT – ':'🟨 Gult kort – ')+(data.name||'');
-    pv.bannerT=1.8; return;
+    if(kind==='red' && st) st.ghostT=7; // ikke slett ham før taklings-koreografien er ferdig
+    if(pv.queue.length<3) pv.queue.push({kind:'card', card:kind==='red'?2:1, team:data.team, name:data.name});
+    return;
   }
   if(kind==='offside'){ // flagget opp: motstanderen får ballen
     pv.banner="🚩 Offside – "+(data.name||''); pv.bannerT=1.4;
@@ -2165,9 +2165,9 @@ function pvRoster(){
       });
     });
   });
-  for(const k of Object.keys(pv.players)) if(!active.has(k)) delete pv.players[k];
+  for(const k of Object.keys(pv.players)) if(!active.has(k) && !(pv.players[k].ghostT>0)) delete pv.players[k];
 }
-function pvMates(team){ const pv=LIVE.pv; return Object.values(pv.players).filter(s=>s.team===team); }
+function pvMates(team){ const pv=LIVE.pv; return Object.values(pv.players).filter(s=>s.team===team && !(s.ghostT>0)); }
 function pvNearest(team,x,y){ let b=null,bd=1e9; for(const s of pvMates(team)){ const d=(s.x-x)**2+(s.y-y)**2; if(d<bd){bd=d;b=s;} } return b; }
 function pvKick(fx,fy,tx,ty,T,h,steal){ LIVE.pv.flight={fx,fy,tx,ty,t:0,T,h:h||0,steal:!!steal}; LIVE.pv.carrier=null; }
 function pvAmbient(dt){
@@ -2207,6 +2207,22 @@ function pvAmbient(dt){
 function pvChoreo(dt){
   const L=LIVE, pv=L.pv, ch=pv.choreo;
   ch.t+=dt;
+  if(ch.kind==='card'){ // taklingssekvens: løp inn -> felling -> kort -> frispark til offeret
+    if(ch.off && ch.t<0.55){ ch.off.tx=ch.fx-0.5; ch.off.ty=ch.fy; }
+    if(ch.t>=0.55 && !ch.tackled){ ch.tackled=true;
+      if(ch.vic) ch.vic.downT=1.2; // offeret ligger nede
+      if(ch.off){ ch.off.card=ch.ev.card===2?2:1; ch.off.cardT=1.7; }
+      pv.banner=(ch.ev.card===2?'🟥 RØDT KORT – ':'🟨 Gult kort – ')+(ch.ev.name||'');
+      pv.bannerT=1.7;
+    }
+    if(ch.t>=2.1){ // frispark til laget som ble taklet
+      pv.choreo=null;
+      const oppT=ch.ev.team===L.home?L.away:L.home;
+      pv.possess=oppT; pv.carrier=ch.vic&&!(ch.vic.ghostT>0)?ch.vic:null; pv.holdT=0.9;
+      if(ch.off && ch.ev.card===2){ ch.off.ghostT=2.0; ch.off.tx=ch.off.x; ch.off.ty=ch.off.y<PVF.H/2?-3:PVF.H+3; } // går av banen
+    }
+    return;
+  }
   if(pv.flight){ const f=pv.flight; f.t=Math.min(f.T,f.t+dt); const u=f.t/f.T;
     pv.ball.x=f.fx+(f.tx-f.fx)*u; pv.ball.y=f.fy+(f.ty-f.fy)*u; pv.ball.z=4*(f.h||0)*u*(1-u);
     if(f.t>=f.T){ pv.flight=null; pv.ball.z=0; } }
@@ -2240,12 +2256,21 @@ function pvLoop(){
   // hendelses-koreografi fra køen
   if(!pv.choreo && pv.queue.length && !L.varActive && !L.shotActive){
     const ev=pv.queue.shift();
-    const atkRight=ev.team===L.home, gx=atkRight?PVF.W:0;
-    const sx=atkRight?PVF.W-17:17, sy=PVF.H/2+(Math.random()*22-11);
-    const sh=pv.players[ev.team+"|"+(ev.name||'')]||null;
-    if(sh){ sh.x=sx-2; sh.y=sy; }
-    pv.choreo={ev,t:0,shot:false,atkRight,gx,sx,sy,shooter:sh};
-    pv.possess=ev.team; pvKick(pv.ball.x,pv.ball.y,sx,sy,0.45,2.0);
+    if(ev.kind==='card'){ // takling: synderen løper i motstanderen, offeret felles, spillet stopper
+      const off=pv.players[ev.team+"|"+(ev.name||'')]||null;
+      const oppT=ev.team===L.home?L.away:L.home;
+      const vic=(pv.carrier&&pv.carrier.team===oppT)?pv.carrier:pvNearest(oppT, off?off.x:pv.ball.x, off?off.y:pv.ball.y);
+      const fx=vic?vic.x:pv.ball.x, fy=vic?vic.y:pv.ball.y;
+      pv.carrier=null; pv.flight=null; pv.ball.x=fx; pv.ball.y=fy; pv.ball.z=0;
+      pv.choreo={ev,t:0,kind:'card',off,vic,fx,fy};
+    } else {
+      const atkRight=ev.team===L.home, gx=atkRight?PVF.W:0;
+      const sx=atkRight?PVF.W-17:17, sy=PVF.H/2+(Math.random()*22-11);
+      const sh=pv.players[ev.team+"|"+(ev.name||'')]||null;
+      if(sh){ sh.x=sx-2; sh.y=sy; }
+      pv.choreo={ev,t:0,shot:false,atkRight,gx,sx,sy,shooter:sh};
+      pv.possess=ev.team; pvKick(pv.ball.x,pv.ball.y,sx,sy,0.45,2.0);
+    }
   }
   if(L.varActive){ pv.banner="📺 VAR-SJEKK …"; pv.bannerT=Math.max(pv.bannerT,0.15); }
   else if(L.shotActive && L.shotPending){ // straffe-tablå
@@ -2259,8 +2284,11 @@ function pvLoop(){
   else if(pv.choreo) pvChoreo(dt);
   else if(!L.ended) pvAmbient(dt);
   // flytt spillerne mot målpunktene sine
-  for(const st of Object.values(pv.players)){
-    if(st!==pv.carrier && !(pv.choreo&&pv.choreo.shooter===st) && !(L.shotActive)){
+  for(const [pkey,st] of Object.entries(pv.players)){
+    if(st.ghostT>0){ st.ghostT-=dt; if(st.ghostT<=0){ delete pv.players[pkey]; continue; } }
+    if(st.downT>0){ st.downT-=dt; if(st.cardT>0) st.cardT-=dt; continue; } // ligger nede etter takling
+    const aktør = pv.choreo && (pv.choreo.shooter===st || pv.choreo.off===st || pv.choreo.vic===st);
+    if(st!==pv.carrier && !aktør && !(st.ghostT>0) && !(L.shotActive)){
       st.tx=st.gk? st.baseX : st.baseX+clamp((pv.ball.x-st.baseX)*0.22,-9,9);
       st.ty=st.gk? PVF.H/2+clamp((pv.ball.y-PVF.H/2)*0.25,-3.2,3.2)
                  : st.baseY+clamp((pv.ball.y-st.baseY)*0.18,-6,6);
@@ -2308,6 +2336,14 @@ function pvDraw(cv){ // flat 2D-bane rett ovenfra – spillerne er runde brikker
   const r=Math.max(6*dpr,1.5*sc);
   for(const st of Object.values(pv.players)){
     const px=X(st.x), py=Y(st.y);
+    if(st.downT>0){ // felt i takling – ligger nede som flat brikke
+      g.fillStyle="rgba(0,0,0,.35)"; g.beginPath(); g.ellipse(px+1.5*dpr,py+2*dpr,r*1.35,r*0.6,0,0,7); g.fill();
+      g.fillStyle=st.gk?"#f5c542":(st.team===L.home?homeCol:awayCol);
+      g.beginPath(); g.ellipse(px,py,r*1.35,r*0.6,0,0,7); g.fill();
+      g.strokeStyle="rgba(0,0,0,.45)"; g.lineWidth=1; g.stroke();
+      g.fillStyle="#fff"; g.font=`bold ${Math.max(7*dpr,r*0.8)}px Segoe UI`; g.textAlign="center"; g.textBaseline="middle";
+      g.fillText(st.no||"",px,py); continue;
+    }
     g.fillStyle="rgba(0,0,0,.35)"; g.beginPath(); g.arc(px+1.5*dpr,py+2*dpr,r,0,7); g.fill();
     g.fillStyle=st.gk?"#f5c542":(st.team===L.home?homeCol:awayCol);
     g.beginPath(); g.arc(px,py,r,0,7); g.fill();
